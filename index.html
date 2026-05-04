@@ -18,19 +18,10 @@
             height: 100dvh;
         }
 
-        /*** NOTEPAD */
         #notepad {
             flex: 1;
             overflow-y: auto;
-            background-image:
-                repeating-linear-gradient(to bottom,
-                    transparent 0dvh,
-                    transparent 9.9dvh,
-                    black 10dvh),
-                url("background.jpg");
-            background-position: 0 5dvh, 0 0;
-            background-repeat: repeat;
-            background-attachment: local;
+            background-image: url("background.jpg");
         }
 
         #notepad::before {
@@ -43,7 +34,6 @@
             background: red;
         }
 
-        /*** TABLE */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -51,39 +41,25 @@
         }
 
         thead {
-            line-height: 5dvh;
+            line-height: 6dvh;
             font-size: 2dvh;
             color: white;
-            background: rgba(160, 82, 45, 0.7);
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            background: maroon;
         }
 
         tbody {
-            line-height: 9.8dvh;
+            line-height: 5dvh;
             font-size: 3dvh;
             text-align: center;
         }
 
         .selected {
-            color: black;
+            color: lime
         }
 
-        /*** ACTIONS */
         #actions {
-            position: fixed;
-            top: 5dvh;
-            width: 20%;
-
-            display: flex;
-            flex-direction: column;
-            animation: slideDown 0.2s ease;
-            background: rgba(0, 0, 0, 0.5);
-
             opacity: 0;
             pointer-events: none;
-
             transition: 0.25s ease;
         }
 
@@ -93,8 +69,13 @@
         }
 
         #actions button {
-            font-size: medium;
+            font-size: 3dvh;
+            padding: 5px;
+            margin: 5px;
         }
+
+        #actions button.active {
+            background-color: maroon;
         }
     </style>
 </head>
@@ -104,7 +85,7 @@
         <table>
             <thead>
                 <tr>
-                    <th width="10%">2x</th>
+                    <th width="10%"></th>
                     <th width="20%" onclick="selectCell(this,0)">Serkan</th>
                     <th width="20%" onclick="selectCell(this,1)">Deniz</th>
                     <th width="20%" onclick="selectCell(this,2)">Fırat</th>
@@ -123,70 +104,96 @@
         </table>
 
         <div id="actions">
-            <button onclick="doAction('bitti')" style="font-size: 100px;">✔️</button>
-            <button onclick="doAction('gosterge')" style="font-size: 100px;">➖</button>
-            <button>OKEY</button>
-            <button>ÇİFT</button>
-            <button>RENK</button>
-            <button>SIRALI</button>
+            <button onclick="toggle(this)" id="2x">✖️</button>
+            <button onclick="minus(1)">➕</button>
+            <button onclick="next()" id="type">➖</button>
+            <button onclick="minus(types[typeIndex].value)">✔️</button>
+            <button onclick="minus(types[typeIndex].value * 2)">⭕️</button>
         </div>
     </div>
 
     <script>
-
         let selectedPlayer = null;
         let scores = [20, 20, 20, 20];
         let round = 0;
+        let typeIndex = 0;
+        let isDouble = false;
 
-        function openActions() {
-            document.getElementById("actions").classList.add("open");
-        }
-
-        function closeActions() {
-            document.getElementById("actions").classList.remove("open");
-        }
-
-        function scrollToBottom() {
-            let notepad = document.getElementById("notepad");
-            notepad.scrollTop = notepad.scrollHeight;
-        }
+        const types = [
+            { name: "normal", icon: "➖", value: 2 },
+            { name: "cift", icon: "➗", value: 6 },
+            { name: "renk", icon: "➰", value: 8 }
+        ];
 
         function selectCell(el, index) {
             document.querySelectorAll("th").forEach(th => th.classList.remove("selected"));
             el.classList.add("selected");
-
             selectedPlayer = index;
-
-            let rect = el.getBoundingClientRect();
-            let indent = rect.left
-            document.getElementById("actions").style.left = indent + "px";
-
             openActions();
         }
 
-        function doAction(type) {
+        function openActions() {
+            let actions = document.getElementById("actions");
+
+            let old = actions.querySelector("table");
+            if (old) old.remove();
+
+            let table = document.createElement("table");
+            let tbody = document.createElement("tbody");
+            let tr = document.createElement("tr");
+
+            let html = `<td>${round}</td>`;
+            scores.forEach(s => {
+                html += `<td>${s}</td>`;
+            });
+
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+            table.appendChild(tbody);
+
+            actions.prepend(table);
+
+            actions.classList.add("open");
+        }
+
+        function closeActions() {
+            typeIndex = 0;
+            document.getElementById("type").innerText = types[typeIndex].icon;
+
+            isDouble = false
+            document.getElementById("2x").classList.remove("active")
+
+            document.getElementById("actions").classList.remove("open");
+        }
+
+        function toggle(el) {
+            isDouble = !isDouble;
+            el.classList.toggle("active");
+        }
+
+        function next() {
+            typeIndex = (typeIndex + 1) % types.length;
+            document.getElementById("type").innerText = types[typeIndex].icon;
+        }
+
+        function minus(amount) {
             if (selectedPlayer === null) return;
 
-            let minus = 0;
-
-            if (type === "bitti") minus = 2;
-            if (type === "okey") minus = 4;
-            if (type === "cift") minus = 6;
-            if (type === "renk") minus = 8;
-            if (type === "gosterge") minus = 1;
+            if (isDouble && amount !== 1) {
+                amount *= 2;
+            }
 
             for (let i = 0; i < 4; i++) {
                 if (i !== selectedPlayer) {
-                    scores[i] -= minus;
+                    scores[i] -= amount;
                 }
             }
 
-            if (type !== "gosterge") {
+            if (amount !== 1) {
                 round++;
             }
 
             addRow();
-            scrollToBottom();
             closeActions();
         }
 
