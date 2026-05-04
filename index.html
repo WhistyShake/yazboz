@@ -20,17 +20,19 @@
 
         /*** NOTEPAD */
         #notepad {
-            flex: 1; 
+            flex: 1;
             overflow-y: auto;
             background-image:
                 repeating-linear-gradient(to bottom,
-                    transparent 0,
-                    transparent 199px,
-                    black 200px),
+                    transparent 0dvh,
+                    transparent 9.9dvh,
+                    black 10dvh),
                 url("background.jpg");
-                background-position: 0 100px, 0 0;
-                background-repeat: repeat;
+            background-position: 0 5dvh, 0 0;
+            background-repeat: repeat;
+            background-attachment: local;
         }
+
         #notepad::before {
             content: "";
             position: absolute;
@@ -47,48 +49,53 @@
             border-collapse: collapse;
             font-family: 'Rock Salt';
         }
+
         thead {
-            font-size: 36px;
+            line-height: 5dvh;
+            font-size: 2dvh;
             color: white;
             background: rgba(160, 82, 45, 0.7);
-            line-height: 100px;
             position: sticky;
             top: 0;
             z-index: 10;
         }
+
         tbody {
-            font-size: 48px;
+            line-height: 9.8dvh;
+            font-size: 3dvh;
             text-align: center;
-            line-height: 198px;
         }
+
         .selected {
-            color:black;
+            color: black;
         }
 
         /*** ACTIONS */
         #actions {
             position: fixed;
-            top: 100px;
+            top: 5dvh;
             width: 20%;
 
             display: flex;
             flex-direction: column;
             animation: slideDown 0.2s ease;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
 
             opacity: 0;
             pointer-events: none;
 
             transition: 0.25s ease;
         }
+
         #actions.open {
             opacity: 1;
             pointer-events: auto;
         }
+
         #actions button {
             font-size: medium;
         }
-}
+        }
     </style>
 </head>
 
@@ -139,6 +146,10 @@
             document.getElementById("actions").classList.remove("open");
         }
 
+        function scrollToBottom() {
+            let notepad = document.getElementById("notepad");
+            notepad.scrollTop = notepad.scrollHeight;
+        }
 
         function selectCell(el, index) {
             document.querySelectorAll("th").forEach(th => th.classList.remove("selected"));
@@ -175,8 +186,8 @@
             }
 
             addRow();
-
-            closeActions(); // ✔ DOĞRU
+            scrollToBottom();
+            closeActions();
         }
 
         function addRow() {
