@@ -8,48 +8,51 @@
     <style>
         body {
             margin: 0;
-            background: #222;
-
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        #layout {
-            width: 100%;
-            max-width: 400px;
-            height: 100vh;
 
             display: flex;
             flex-direction: column;
+
+            width: 100dvw;
+            height: 100dvh;
         }
 
         #notepad {
             flex: 1;
-            position: relative;
-            font-family: "Comic Sans MS", "Segoe Script", "Brush Script MT", cursive;
+
             background-image:
                 repeating-linear-gradient(to bottom,
-                    transparent 0px,
-                    transparent 39px,
-                    rgba(0, 0, 0, 0.5) 40px),
+                    transparent 0,
+                    transparent 59px,
+                    black 60px),
                 url("background.jpg");
+        }
+
+        #notepad::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 10%;
+            width: 2px;
+            background: red;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            font-family: cursive;
+            line-height: 58px;
         }
 
-        thead th {
-            background: Sienna;
+        thead {
+            font-size: 36px;
             color: white;
+            background: rgba(160, 82, 45, 0.7);
+
         }
 
-        th,
-        td {
-            height: 40px;
+        tbody {
+            font-size: 48px;
             text-align: center;
         }
 
@@ -58,12 +61,9 @@
         }
 
         #actions {
-            position: absolute;
-            inset: 0;
-            height: 40px;
-
+            width: 10%;
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
 
             opacity: 0;
             pointer-events: none;
@@ -76,74 +76,42 @@
         }
 
         #actions button {
-            flex: 1;
-            height: 100%;
-            font-size: 28px;
-        }
-
-        #bottomBar {
-            height: 50px;
-
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-
-            border-top: 1px solid #ccc;
-        }
-
-        #bottomBar button {
-            background: none;
-            border: none;
-            font-size: 18px;
+            font-size: medium;
         }
     </style>
 </head>
 
 <body>
+    <div id="notepad">
+        <table>
+            <thead>
+                <tr>
+                    <th width="10%">2x</th>
+                    <th width="20%" onclick="selectCell(this,0)">Serkan</th>
+                    <th width="20%" onclick="selectCell(this,1)">Deniz</th>
+                    <th width="20%" onclick="selectCell(this,2)">Fırat</th>
+                    <th width="20%" onclick="selectCell(this,3)">Berkay</th>
+                </tr>
+            </thead>
+            <tbody id="tbody">
+                <tr>
+                    <td>0</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>20</td>
+                </tr>
+            </tbody>
+        </table>
 
-    <div id="layout">
-
-        <div id="notepad">
-
-            <div id="actions">
-                <button onclick="doAction('gosterge')">〰️</button>
-                <button onclick="doAction('bitti')">✔️</button>
-                <button onclick="doAction('okey')">⭕</button>
-                <button onclick="doAction('cift')">👥</button>
-                <button onclick="doAction('renk')">➰</button>
-                <button onclick="doAction('renk')">➿</button>
-                <button onclick="closeActions()">❌</button>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th width="40px"></th>
-                        <th onclick="selectCell(this,0)">Serkan</th>
-                        <th onclick="selectCell(this,1)">Deniz</th>
-                        <th onclick="selectCell(this,2)">Fırat</th>
-                        <th onclick="selectCell(this,3)">Berkay</th>
-                    </tr>
-                </thead>
-
-                <tbody id="tbody">
-                    <tr>
-                        <td>0</td>
-                        <td>20</td>
-                        <td>20</td>
-                        <td>20</td>
-                        <td>20</td>
-                    </tr>
-                </tbody>
-            </table>
-
+        <div id="actions">
+            <button onclick="doAction('bitti')" style="font-size: 28px;">✔️</button>
+            <button onclick="doAction('gosterge')" style="font-size: 28px;">➖</button>
+            <button>OKEY</button>
+            <button>ÇİFT</button>
+            <button>RENK</button>
+            <button>SIRALI</button>
         </div>
-
-        <!-- ALT BAR -->
-        <div id="bottomBar">
-            <button onclick="location.reload()">🔄</button>
-        </div>
-
     </div>
 
     <script>
