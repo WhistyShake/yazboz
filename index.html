@@ -44,7 +44,7 @@
             line-height: 6dvh;
             font-size: 2dvh;
             color: white;
-            background: maroon;
+            background: Sienna;
         }
 
         tbody {
@@ -58,6 +58,15 @@
         }
 
         #actions {
+            position: fixed;
+            inset: 0;
+
+            background: rgba(0, 0, 0, 0.6);
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
             opacity: 0;
             pointer-events: none;
             transition: 0.25s ease;
@@ -69,13 +78,12 @@
         }
 
         #actions button {
-            font-size: 3dvh;
-            padding: 5px;
-            margin: 5px;
+            font-size: 10dvw;
+            padding: 10px;
         }
 
         #actions button.active {
-            background-color: maroon;
+            background-color: Pink
         }
     </style>
 </head>
@@ -110,109 +118,94 @@
             <button onclick="minus(types[typeIndex].value)">✔️</button>
             <button onclick="minus(types[typeIndex].value * 2)">⭕️</button>
         </div>
-    </div>
 
-    <script>
-        let selectedPlayer = null;
-        let scores = [20, 20, 20, 20];
-        let round = 0;
-        let typeIndex = 0;
-        let isDouble = false;
+        <script>
+            let selectedPlayer = null;
+            let scores = [20, 20, 20, 20];
+            let round = 0;
+            let typeIndex = 0;
+            let isDouble = false;
 
-        const types = [
-            { name: "normal", icon: "➖", value: 2 },
-            { name: "cift", icon: "➗", value: 6 },
-            { name: "renk", icon: "➰", value: 8 }
-        ];
+            const types = [
+                { name: "normal", icon: "➖", value: 2 },
+                { name: "cift", icon: "➗", value: 6 },
+                { name: "renk", icon: "➰", value: 8 }
+            ];
 
-        function selectCell(el, index) {
-            document.querySelectorAll("th").forEach(th => th.classList.remove("selected"));
-            el.classList.add("selected");
-            selectedPlayer = index;
-            openActions();
-        }
-
-        function openActions() {
-            let actions = document.getElementById("actions");
-
-            let old = actions.querySelector("table");
-            if (old) old.remove();
-
-            let table = document.createElement("table");
-            let tbody = document.createElement("tbody");
-            let tr = document.createElement("tr");
-
-            let html = `<td>${round}</td>`;
-            scores.forEach(s => {
-                html += `<td>${s}</td>`;
-            });
-
-            tr.innerHTML = html;
-            tbody.appendChild(tr);
-            table.appendChild(tbody);
-
-            actions.prepend(table);
-
-            actions.classList.add("open");
-        }
-
-        function closeActions() {
-            typeIndex = 0;
-            document.getElementById("type").innerText = types[typeIndex].icon;
-
-            isDouble = false
-            document.getElementById("2x").classList.remove("active")
-
-            document.getElementById("actions").classList.remove("open");
-        }
-
-        function toggle(el) {
-            isDouble = !isDouble;
-            el.classList.toggle("active");
-        }
-
-        function next() {
-            typeIndex = (typeIndex + 1) % types.length;
-            document.getElementById("type").innerText = types[typeIndex].icon;
-        }
-
-        function minus(amount) {
-            if (selectedPlayer === null) return;
-
-            if (isDouble && amount !== 1) {
-                amount *= 2;
+            function selectCell(el, index) {
+                document.querySelectorAll("th").forEach(th => th.classList.remove("selected"));
+                el.classList.add("selected");
+                selectedPlayer = index;
+                openActions();
             }
 
-            for (let i = 0; i < 4; i++) {
-                if (i !== selectedPlayer) {
-                    scores[i] -= amount;
+            function openActions() {
+                document.getElementById("actions").classList.add("open");
+            }
+
+            function closeActions() {
+                typeIndex = 0;
+                document.getElementById("type").innerText = types[typeIndex].icon;
+
+                isDouble = false
+                document.getElementById("2x").classList.remove("active")
+
+                document.getElementById("actions").classList.remove("open");
+            }
+
+            function toggle(el) {
+                isDouble = !isDouble;
+                el.classList.toggle("active");
+            }
+
+            function next() {
+                typeIndex = (typeIndex + 1) % types.length;
+                document.getElementById("type").innerText = types[typeIndex].icon;
+            }
+
+            function minus(amount) {
+                if (selectedPlayer === null) return;
+
+                if (isDouble && amount !== 1) {
+                    amount *= 2;
                 }
+
+                for (let i = 0; i < 4; i++) {
+                    if (i !== selectedPlayer) {
+                        scores[i] -= amount;
+                    }
+                }
+
+                if (amount !== 1) {
+                    round++;
+                }
+
+                addRow();
+                closeActions();
             }
 
-            if (amount !== 1) {
-                round++;
+            function addRow() {
+                let tr = document.createElement("tr");
+                let html = `<td>${round}</td>`;
+
+                scores.forEach((s, i) => {
+                    if (i === selectedPlayer) {
+                        html += `<td>---</td>`;
+                    } else {
+                        html += `<td>${s}</td>`;
+                    }
+                });
+
+                tr.innerHTML = html;
+                document.getElementById("tbody").appendChild(tr);
             }
 
-            addRow();
-            closeActions();
-        }
-
-        function addRow() {
-            let tr = document.createElement("tr");
-            let html = `<td>${round}</td>`;
-
-            scores.forEach((s, i) => {
-                if (i === selectedPlayer) {
-                    html += `<td>---</td>`;
-                } else {
-                    html += `<td>${s}</td>`;
+            document.getElementById("actions").addEventListener("click", function (e) {
+                if (e.target === this) {
+                    closeActions();
                 }
             });
-
-            tr.innerHTML = html;
-            document.getElementById("tbody").appendChild(tr);
-        }
-    </script>
+        </script>
 
 </body>
 
