@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" rel="stylesheet">
 
     <style>
+
         body {
             margin: 0;
             background-color: black;
@@ -57,7 +58,7 @@
             text-align: center;
         }
 
-        .highlight {
+        .selected {
             color: yellow;
         }
 
@@ -98,12 +99,16 @@
             font-size: 5dvh;
             padding: 2%;
         }
+
     </style>
 </head>
 
 <body>
+
     <div id="notepad">
+
         <table>
+
             <thead>
                 <tr>
                     <th width="10%" onclick="simulateGame()">x</th>
@@ -113,6 +118,7 @@
                     <th name="player" width="20%" onclick="selectCell(this,3)">Berkay</th>
                 </tr>
             </thead>
+
             <tbody id="tbody">
                 <tr>
                     <td>0</td>
@@ -122,39 +128,43 @@
                     <td>20</td>
                 </tr>
             </tbody>
+
         </table>
 
         <div id="actions">
+
             <button onclick="toggle(this)" id="double">✖️</button>
             <button onclick="minus(1)">➕</button>
             <button onclick="next()" id="type">➖</button>
-            <button onclick="minus(game[type].value)">✔️</button>
-            <button onclick="minus(game[type].value * 2)">⭕️</button>
+            <button onclick="minus(types[typeIndex].value)">✔️</button>
+            <button onclick="minus(types[typeIndex].value * 2)">⭕️</button>
+
         </div>
 
         <script>
-            let winner = null;
+
+            let gameFinished = false;
+
+            let selectedPlayer = null;
             let scores = [20, 20, 20, 20];
             let round = 0;
-            let type = 0;
-            let renk = false;
-            let end = false;
-            let cooldown = false;
+            let typeIndex = 0;
+            let isDouble = false;
 
             const icon = {
                 on: "❌",
                 off: "✖️"
             };
 
-            const game = [
+            const types = [
                 { name: "normal", icon: "➖", value: 2 },
                 { name: "cift", icon: "➗", value: 6 },
-                { name: "renkli", icon: "➰", value: 8 }
+                { name: "renk", icon: "➰", value: 8 }
             ];
 
             function selectCell(el, index) {
-                el.classList.add("highlight");
-                winner = index;
+                el.classList.add("selected");
+                selectedPlayer = index;
                 openActions();
             }
 
@@ -163,47 +173,46 @@
             }
 
             function closeActions() {
-                winner = null;
+
+                selectedPlayer = null;
 
                 document.getElementsByName("player")
-                    .forEach(el => el.classList.remove("highlight"));
+                    .forEach(el => el.classList.remove("selected"));
 
-                type = 0;
-                document.getElementById("type").innerText = game[type].icon;
+                typeIndex = 0;
+                document.getElementById("type").innerText = types[typeIndex].icon;
 
-                renk = false;
+                isDouble = false;
                 document.getElementById("double").innerText = icon.off;
 
                 document.getElementById("actions").classList.remove("open");
             }
 
             function toggle(el) {
-                renk = !renk;
-                el.innerText = renk ? icon.on : icon.off;
+                isDouble = !isDouble;
+                el.innerText = isDouble ? icon.on : icon.off;
             }
 
             function next() {
-                type = (type + 1) % game.length;
-                document.getElementById("type").innerText = game[type].icon;
+                typeIndex = (typeIndex + 1) % types.length;
+                document.getElementById("type").innerText = types[typeIndex].icon;
             }
 
             function minus(amount) {
-                if (amount == 1 && cooldown) return;
 
-                if (amount !== 1 && renk) {
+                if (selectedPlayer === null) return;
+
+                if (isDouble && amount !== 1) {
                     amount *= 2;
                 }
 
                 for (let i = 0; i < 4; i++) {
-                    if (i !== winner) {
+                    if (i !== selectedPlayer) {
                         scores[i] -= amount;
                     }
                 }
 
-                if (amount == 1) {
-                    cooldown = true
-                } else {
-                    cooldown = false
+                if (amount !== 1) {
                     round++;
                 }
 
@@ -213,44 +222,55 @@
             }
 
             function addRow(amount) {
+
                 let tr = document.createElement("tr");
                 let html = `<td>${round}</td>`;
+
                 scores.forEach((s, i) => {
 
-                    if (i === winner) {
+                    if (i === selectedPlayer) {
                         html += `<td class="plus">+${amount}</td>`;
                     } else {
                         html += `<td>${s}</td>`;
                     }
                 });
+
                 tr.innerHTML = html;
                 document.getElementById("tbody").appendChild(tr);
             }
 
             function checkGameOver() {
+
                 let losers = 0;
+
                 for (let i = 0; i < scores.length; i++) {
                     if (scores[i] <= 0) {
                         losers++;
                     }
                 }
+
                 if (losers >= 2) {
-                    end = true;
+                    gameFinished = true;
                     addResults();
                 }
             }
 
             function addResults() {
+
                 let tr = document.createElement("tr");
                 tr.classList.add("results");
+
                 let html = `<td></td>`;
+
                 let sorted = [...scores].sort((a, b) => b - a);
+
                 scores.forEach(s => {
 
                     let rank = sorted.indexOf(s);
 
                     html += `<td><b>${s}</b><br>${rank === 0 ? "1" : rank === 1 ? "2" : ""}</td>`;
                 });
+
                 tr.innerHTML = html;
                 document.getElementById("tbody").appendChild(tr);
             }
@@ -262,18 +282,27 @@
             });
 
             function simulateGame() {
-                const amounts = [1, 2, 4, 8];
+
+                const amounts = [1, 1, 2, 4, 8];
+
                 let interval = setInterval(() => {
-                    if (end) {
+
+                    if (gameFinished) {
                         clearInterval(interval);
                         return;
                     }
-                    winner = Math.floor(Math.random() * 4);
+
+                    selectedPlayer = Math.floor(Math.random() * 4);
+
                     let amount = amounts[Math.floor(Math.random() * amounts.length)];
+
                     minus(amount);
+
                 }, 600);
             }
+
         </script>
+
 </body>
 
 </html>
