@@ -66,6 +66,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            gap: 10px;
 
             opacity: 0;
             pointer-events: none;
@@ -80,10 +81,6 @@
         #actions button {
             font-size: 10dvw;
             padding: 10px;
-        }
-
-        #actions button.active {
-            background-color: Pink
         }
     </style>
 </head>
@@ -112,7 +109,7 @@
         </table>
 
         <div id="actions">
-            <button onclick="toggle(this)" id="2x">✖️</button>
+            <button onclick="toggle(this)" id="double">✖️</button>
             <button onclick="minus(1)">➕</button>
             <button onclick="next()" id="type">➖</button>
             <button onclick="minus(types[typeIndex].value)">✔️</button>
@@ -125,6 +122,11 @@
             let round = 0;
             let typeIndex = 0;
             let isDouble = false;
+            
+            const icon = {
+                on: "❌",
+                off: "✖️"
+            };
 
             const types = [
                 { name: "normal", icon: "➖", value: 2 },
@@ -148,14 +150,14 @@
                 document.getElementById("type").innerText = types[typeIndex].icon;
 
                 isDouble = false
-                document.getElementById("2x").classList.remove("active")
+                document.getElementById("double").innerText = icon.off
 
                 document.getElementById("actions").classList.remove("open");
             }
 
             function toggle(el) {
                 isDouble = !isDouble;
-                el.classList.toggle("active");
+                el.innerText = isDouble ? icon.on : icon.off;
             }
 
             function next() {
