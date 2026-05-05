@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>Okey Yazboz</title>
 
-    <!-- Google el yazısı fontu -->
     <link href="https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" rel="stylesheet">
 
     <style>
@@ -13,27 +12,22 @@
             margin: 0;
             background-color: black;
 
-            /* Sayfayı dikey layout yapıyoruz */
             display: flex;
             flex-direction: column;
 
-            /* mobil ekran boyutu */
             width: 100dvw;
             height: 100dvh;
         }
 
         #notepad {
             flex: 1;
-            /* kalan alanı kapla */
+            position: relative;
 
             overflow-y: auto;
-            /* taşarsa scroll */
 
-            /* arka plan resmi */
             background-image: url("background.jpg");
         }
 
-        /* kırmızı çizgi (sol şerit) */
         #notepad::before {
             content: "";
             position: absolute;
@@ -47,14 +41,11 @@
         table {
             width: 100%;
             border-collapse: collapse;
-
-            /* el yazısı font */
             font-family: 'Rock Salt';
         }
 
         thead {
             line-height: 6dvh;
-            /* header yüksekliği */
             font-size: 2dvh;
             color: white;
             background: Sienna;
@@ -62,54 +53,50 @@
 
         tbody {
             line-height: 5dvh;
-            /* satır yüksekliği */
             font-size: 3dvh;
             text-align: center;
         }
 
-        /* seçilen isim rengi */
         .selected {
             color: yellow;
         }
 
-        .results {
-            border-top: 1px solid black;
+        .plus {
+            color: red;
         }
 
-        /* popup aksiyon paneli */
+        .results {
+            border-top: 1px solid black;
+            vertical-align: top;
+            font-weight: bold;
+            color: red;
+        }
+
         #actions {
             position: fixed;
             inset: 0;
-            /* full ekran kapla */
 
             display: flex;
             justify-content: center;
             align-items: center;
 
             gap: 1%;
-            /* buton arası boşluk */
 
             opacity: 0;
             pointer-events: none;
             transition: 0.25s ease;
         }
 
-        /* popup açılınca */
         #actions.open {
             opacity: 1;
             pointer-events: auto;
             background: rgba(0, 0, 0, 0.6);
-            /* arka plan karartma */
         }
 
-        /* aksiyon butonları */
         #actions button {
             width: 18%;
-            /* genişlik kontrolü */
             font-size: 5dvh;
-            /* ikon boyutu */
             padding: 2%;
-            /* iç boşluk */
         }
     </style>
 </head>
@@ -118,14 +105,11 @@
 
     <div id="notepad">
 
-        <!-- SKOR TABLOSU -->
         <table>
+
             <thead>
                 <tr>
-                    <!-- boş kolon (round sayısı) -->
-                    <th width="10%"></th>
-
-                    <!-- isimler, tıklanınca selectCell çalışır -->
+                    <th width="10%" onclick="simulateGame()">x</th>
                     <th name="player" width="20%" onclick="selectCell(this,0)">Serkan</th>
                     <th name="player" width="20%" onclick="selectCell(this,1)">Deniz</th>
                     <th name="player" width="20%" onclick="selectCell(this,2)">Fırat</th>
@@ -133,7 +117,6 @@
                 </tr>
             </thead>
 
-            <!-- skor satırlarının eklendiği yer -->
             <tbody id="tbody">
                 <tr>
                     <td>0</td>
@@ -143,209 +126,154 @@
                     <td>20</td>
                 </tr>
             </tbody>
+
         </table>
 
-        <!-- AKSİYON MENÜSÜ -->
         <div id="actions">
 
-            <!-- renk aktif/pasif -->
             <button onclick="toggle(this)" id="double">✖️</button>
-
-            <!-- -1 puan (gösterge) -->
             <button onclick="minus(1)">➕</button>
-
-            <!-- type değiştir -->
             <button onclick="next()" id="type">➖</button>
-
-            <!-- normal puan çıkar -->
             <button onclick="minus(types[typeIndex].value)">✔️</button>
-
-            <!-- double puan çıkar (okey) -->
             <button onclick="minus(types[typeIndex].value * 2)">⭕️</button>
 
         </div>
 
         <script>
-
-            // seçili oyuncu index'i
             let selectedPlayer = null;
-
-            // tüm oyuncuların skorları
             let scores = [20, 20, 20, 20];
-
-            // kaçıncı round
             let round = 0;
-
-            // hangi aksiyon tipi seçili
             let typeIndex = 0;
-
-            // renk aktif mi
             let isDouble = false;
+            let gameFinished = false;
 
-            // renk ikonları
             const icon = {
                 on: "❌",
                 off: "✖️"
             };
 
-            // işlem tipleri (puan sistemleri)
             const types = [
                 { name: "normal", icon: "➖", value: 2 },
                 { name: "cift", icon: "➗", value: 6 },
                 { name: "renk", icon: "➰", value: 8 }
             ];
 
-            // isim seçildiğinde çağrılır
             function selectCell(el, index) {
-
-                // seçilen ismi highlight yap
                 el.classList.add("selected");
-
-                // seçilen oyuncuyu kaydet
                 selectedPlayer = index;
-
-                // popup aç
                 openActions();
             }
 
-            // popup aç
             function openActions() {
                 document.getElementById("actions").classList.add("open");
             }
 
-            // popup kapat + reset
             function closeActions() {
-
-                // seçimi kaldır
                 selectedPlayer = null;
-                document.getElementsByName("player").forEach(el => el.classList.remove("selected"));
 
-                // type reset
+                document.getElementsByName("player")
+                    .forEach(el => el.classList.remove("selected"));
+
                 typeIndex = 0;
                 document.getElementById("type").innerText = types[typeIndex].icon;
 
-                // renk reset
                 isDouble = false;
                 document.getElementById("double").innerText = icon.off;
 
-                // popup kapat
                 document.getElementById("actions").classList.remove("open");
             }
 
-            // renk toggle
             function toggle(el) {
                 isDouble = !isDouble;
-
-                // ikon değiştir
                 el.innerText = isDouble ? icon.on : icon.off;
             }
 
-            // işlem tipini değiştir
             function next() {
                 typeIndex = (typeIndex + 1) % types.length;
-
-                // buton ikonunu güncelle
                 document.getElementById("type").innerText = types[typeIndex].icon;
             }
 
-            // skor düşürme işlemi
             function minus(amount) {
-
-                // oyuncu seçilmediyse işlem yapma
                 if (selectedPlayer === null) return;
-
-                // renk aktifse ve gösterge değilse çarp
                 if (isDouble && amount !== 1) {
                     amount *= 2;
                 }
 
-                // tüm oyunculara etki et (seçilen hariç)
                 for (let i = 0; i < 4; i++) {
                     if (i !== selectedPlayer) {
                         scores[i] -= amount;
                     }
                 }
-
-                // gerçek puan işlemi ise round artır
                 if (amount !== 1) {
                     round++;
                 }
-
-                // tabloya yeni satır ekle
-                addRow();
-
-                // popup kapat
+                addRow(amount);
                 closeActions();
-
                 checkGameOver();
             }
 
-            // tabloya yeni satır ekler
-            function addRow() {
-
+            function addRow(amount) {
                 let tr = document.createElement("tr");
-
                 let html = `<td>${round}</td>`;
-
-                // tüm skorları yaz
                 scores.forEach((s, i) => {
 
                     if (i === selectedPlayer) {
-                        html += `<td>---</td>`;
+                        html += `<td class="plus">+${amount}</td>`;
                     } else {
                         html += `<td>${s}</td>`;
                     }
                 });
-
                 tr.innerHTML = html;
-
-                // tabloya ekle
                 document.getElementById("tbody").appendChild(tr);
             }
 
             function checkGameOver() {
-
                 let losers = 0;
-
-                // 2 veya daha fazla kişi 0 altına düştü mü?
                 for (let i = 0; i < scores.length; i++) {
                     if (scores[i] <= 0) {
                         losers++;
                     }
                 }
-
                 if (losers >= 2) {
-                    addResults();   // SONUÇ SATIRI
+                    gameFinished = true;
+                    addResults();
                 }
             }
 
             function addResults() {
-
                 let tr = document.createElement("tr");
                 tr.classList.add("results");
-
                 let html = `<td></td>`;
-
+                let sorted = [...scores].sort((a, b) => b - a);
                 scores.forEach(s => {
-                    html += `<td><b>${s}</b></td>`;
+
+                    let rank = sorted.indexOf(s);
+
+                    html += `<td><b>${s}</b><br>${rank === 0 ? "1" : rank === 1 ? "2" : ""}</td>`;
                 });
-
                 tr.innerHTML = html;
-
                 document.getElementById("tbody").appendChild(tr);
             }
 
-            // popup dışına tıklayınca kapat
             document.getElementById("actions").addEventListener("click", function (e) {
-
-                // sadece arka plana tıklanırsa
                 if (e.target === this) {
                     closeActions();
                 }
             });
 
+            function simulateGame() {
+                const amounts = [1, 2, 4, 8];
+                let interval = setInterval(() => {
+                    if (gameFinished) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    selectedPlayer = Math.floor(Math.random() * 4);
+                    let amount = amounts[Math.floor(Math.random() * amounts.length)];
+                    minus(amount);
+                }, 600);
+            }
         </script>
-
 </body>
 
 </html>
