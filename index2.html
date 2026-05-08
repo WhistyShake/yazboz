@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Okey Yazboz</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            display: flex;
+            flex-direction: column;
+            width: 100dvw;
+            height: 100dvh;
+        }
+
+        #notepad {
+            flex: 1;
+            position: relative;
+            background-image: url("background.jpg");
+        }
+
+        #notepad::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 10%;
+            width: 2px;
+            background: red;
+        }
+
+        #notepad>table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Rock Salt';
+        }
+
+        #notepad>table>thead {
+            line-height: 6dvh;
+            font-size: 2dvh;
+            color: white;
+            background: sienna;
+        }
+
+        #notepad>table>tbody {
+            line-height: 5dvh;
+            font-size: 3dvh;
+            text-align: center;
+        }
+
+        .resultsRow {
+            border-top: 1px solid black;
+            font-weight: bold;
+            color: red;
+        }
+
+        #actions {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.25s;
+        }
+
+        #actions.open {
+            opacity: 1;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        #actions button {
+            font-size: 8dvw;
+            padding: 2dvw;
+        }
+
+        #topbar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background: #111;
+        }
+
+        #topbar button {
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="topbar">
+        <button onclick="createNewGame()">🆕 Yeni Oyun</button>
+        <button onclick="undo()">↩️ Undo</button>
+    </div>
+    <div id="notepad">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th class="playerName" onclick="selectPlayer(this,0)">Serkan</th>
+                    <th class="playerName" onclick="selectPlayer(this,1)">Deniz</th>
+                    <th class="playerName" onclick="selectPlayer(this,2)">Fırat</th>
+                    <th class="playerName" onclick="selectPlayer(this,3)">Berkay</th>
+                </tr>
+            </thead>
+            <tbody id="scoreTable"></tbody>
+        </table>
+        <div id="actions">
+            <table style="color:white;text-align:center;">
+                <tr style="font-size:3dvw;">
+                    <td>Gösterge</td>
+                    <td>Ceza</td>
+                    <td>Renk</td>
+                    <td>Normal</td>
+                    <td>Okey</td>
+                </tr>
+                <tr>
+                    <td><button onclick="applyScore(1)">➕</button></td>
+                    <td><button onclick="applyPenalty()">➖</button></td>
+                    <td><button onclick="toggleDoubleMode(this)" id="doubleButton">✖️</button></td>
+                    <td><button onclick="applyNormal()">✔️</button></td>
+                    <td><button onclick="applyOkey()">⭕️</button></td>
+                </tr>
+                <tr style="font-size:6dvw;">
+                    <td>+1</td>
+                    <td id="penaltyValue">-2</td>
+                    <td id="doubleValue">x1</td>
+                    <td id="normalValue">+2</td>
+                    <td id="okeyValue">+4</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <script type="module">
+        // =========================
+        // FIREBASE
+        // =========================
+        import { initializeApp }
+            from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getDatabase, ref, get, set, push, update, onValue, remove }
+            from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+        const firebaseConfig = {
+            apiKey: "AIzaSyDi0ujxXS-pOoKYei3l2wTDdgE107waz2c",
+            authDomain: "yazboz-6588f.firebaseapp.com",
+            databaseURL: "https://yazboz-6588f-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "yazboz-6588f",
+            storageBucket: "yazboz-6588f.firebasestorage.app",
+            messagingSenderId: "7696379579",
+            appId: "1:7696379579:web:7c5270d6611253af8e039e",
+            measurementId: "G-7S2PSXT9DP"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        // =========================
+        // GAME STATE
+        // =========================
+        let currentGameId = null;
+        const gameState = {
+            scores: [20, 20, 20, 20],
+            activePlayer: null,
+            round: 0,
+            baseScore: 2,
+            doubleMode: false,
+            finished: false,
+            rows: []
+        };
+        // =========================
+        // START
+        // =========================
+        loadCurrentGame();
+        // =========================
+        // LOAD CURRENT GAME
+        // =========================
+        async function loadCurrentGame() {
+            const currentRef = ref(db, "currentGameId");
+            const currentSnap = await get(currentRef);
+            // hiç oyun yoksa yeni oluştur
+            if (!currentSnap.exists()) {
+                createNewGame();
+                return;
+            }
+            currentGameId = currentSnap.val();
+            const gameRef =
+                ref(db, "games/" + currentGameId);
+            onValue(gameRef, snap => {
+                if (!snap.exists()) return;
+                const data = snap.val();
+                Object.assign(gameState, data);
+                rebuildTable();
+            });
+        }
+        // =========================
+        // NEW GAME
+        // =========================
+        window.createNewGame = async function () {
+            const newGameRef =
+                push(ref(db, "games"));
+            currentGameId = newGameRef.key;
+            // yeni boş oyun
+            const newGame = {
+                scores: [20, 20, 20, 20],
+                activePlayer: null,
+                round: 0,
+                baseScore: 2,
+                doubleMode: false,
+                finished: false,
+                rows: []
+            };
+            // database'e yaz
+            await set(
+                ref(db, "games/" + currentGameId),
+                newGame
+            );
+            // aktif oyunu değiştir
+            await set(
+                ref(db, "currentGameId"),
+                currentGameId
+            );
+            // local state güncelle
+            Object.assign(gameState, newGame);
+            // tabloyu yenile
+            rebuildTable();
+        }
+        // =========================
+        // SAVE
+        // =========================
+        async function saveGame() {
+            await set(
+                ref(db, "games/" + currentGameId),
+                gameState
+            );
+        }
+        // =========================
+        // SELECT PLAYER
+        // =========================
+        window.selectPlayer = function (el, index) {
+            if (gameState.finished) return;
+            gameState.activePlayer = index;
+            document
+                .querySelectorAll(".playerName")
+                .forEach(e => e.style.color = "");
+            el.style.color = "yellow";
+            document
+                .getElementById("actions")
+                .classList
+                .add("open");
+        }
+        // =========================
+        // DOUBLE MODE
+        // =========================
+        window.toggleDoubleMode = function (btn) {
+            gameState.doubleMode =
+                !gameState.doubleMode;
+            gameState.baseScore =
+                gameState.doubleMode ? 4 : 2;
+            btn.innerText =
+                gameState.doubleMode ? "❌" : "✖️";
+            document.getElementById("penaltyValue")
+                .innerText =
+                gameState.doubleMode ? "-4" : "-2";
+            document.getElementById("doubleValue")
+                .innerText =
+                gameState.doubleMode ? "x2" : "x1";
+            document.getElementById("normalValue")
+                .innerText =
+                gameState.doubleMode ? "+4" : "+2";
+            document.getElementById("okeyValue")
+                .innerText =
+                gameState.doubleMode ? "+8" : "+4";
+        }
+        // =========================
+        // APPLY SCORE
+        // =========================
+        window.applyScore = async function (value) {
+            if (gameState.finished) return;
+            const before =
+                [...gameState.scores];
+            const player =
+                gameState.activePlayer;
+            if (player === null) return;
+            // ceza
+            if (value < 0) {
+                gameState.scores[player] += value;
+            }
+            // normal
+            else {
+                for (let i = 0; i < 4; i++) {
+                    if (i !== player) {
+                        gameState.scores[i] -= value;
+                    }
+                }
+            }
+            if (value !== 1) {
+                gameState.round++;
+            }
+            // row kaydı
+            gameState.rows.push({
+                round: gameState.round,
+                scores: [...gameState.scores],
+                player: player,
+                value: value
+            });
+            checkGameOver();
+            await saveGame();
+            closePanel();
+        }
+        window.applyPenalty = function () {
+            applyScore(-gameState.baseScore);
+        }
+        window.applyNormal = function () {
+            applyScore(gameState.baseScore);
+        }
+        window.applyOkey = function () {
+            applyScore(gameState.baseScore * 2);
+        }
+        // =========================
+        // REBUILD TABLE
+        // =========================
+        function rebuildTable() {
+            const tbody =
+                document.getElementById("scoreTable");
+            tbody.innerHTML = "";
+            // ilk satır
+            tbody.innerHTML += `
+                <tr>
+                    <td>0</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>20</td>
+                    <td>20</td>
+                </tr>
+            `;
+            gameState.rows.forEach(row => {
+                let html =
+                    `<tr><td>${row.round}</td>`;
+                row.scores.forEach((score, i) => {
+                    if (i === row.player) {
+                        html += `
+                            <td style="color:red;">
+                                ${row.value > 0 ? "+" : ""}
+                                ${row.value}
+                            </td>
+                        `;
+                    }
+                    else {
+                        html += `<td>${score}</td>`;
+                    }
+                });
+                html += "</tr>";
+                tbody.innerHTML += html;
+            });
+            if (gameState.finished) {
+                renderFinalRow();
+            }
+        }
+        // =========================
+        // GAME OVER
+        // =========================
+        function checkGameOver() {
+            const losers =
+                gameState.scores
+                    .filter(s => s <= 0)
+                    .length;
+            if (losers >= 2) {
+                gameState.finished = true;
+            }
+        }
+        // =========================
+        // FINAL ROW
+        // =========================
+        function renderFinalRow() {
+            const tbody =
+                document.getElementById("scoreTable");
+            const sorted =
+                [...gameState.scores]
+                    .sort((a, b) => b - a);
+            let html =
+                `<tr class="resultsRow"><td></td>`;
+            gameState.scores.forEach(s => {
+                const rank =
+                    sorted.indexOf(s) + 1;
+                html += `
+                    <td>
+                        <b>${s}</b>
+                        <br>
+                        ${rank}
+                    </td>
+                `;
+            });
+            html += "</tr>";
+            tbody.innerHTML += html;
+        }
+        // =========================
+        // UNDO
+        // =========================
+        window.undo = async function () {
+            if (gameState.rows.length === 0) return;
+            gameState.rows.pop();
+            // reset
+            gameState.scores =
+                [20, 20, 20, 20];
+            gameState.round = 0;
+            // tekrar hesapla
+            gameState.rows.forEach(r => {
+                if (r.value < 0) {
+                    gameState.scores[r.player] += r.value;
+                }
+                else {
+                    for (let i = 0; i < 4; i++) {
+                        if (i !== r.player) {
+                            gameState.scores[i] -= r.value;
+                        }
+                    }
+                }
+                if (r.value !== 1) {
+                    gameState.round++;
+                }
+            });
+            gameState.finished = false;
+            await saveGame();
+        }
+        // =========================
+        // CLOSE PANEL
+        // =========================
+        function closePanel() {
+            gameState.activePlayer = null;
+            gameState.doubleMode = false;
+            gameState.baseScore = 2;
+            document
+                .querySelectorAll(".playerName")
+                .forEach(e => e.style.color = "");
+            document
+                .getElementById("doubleButton")
+                .innerText = "✖️";
+            document
+                .getElementById("penaltyValue")
+                .innerText = "-2";
+            document
+                .getElementById("doubleValue")
+                .innerText = "x1";
+            document
+                .getElementById("normalValue")
+                .innerText = "+2";
+            document
+                .getElementById("okeyValue")
+                .innerText = "+4";
+            document
+                .getElementById("actions")
+                .classList
+                .remove("open");
+        }
+        // =========================
+        // OUTSIDE CLICK
+        // =========================
+        document
+            .getElementById("actions")
+            .addEventListener("click", e => {
+                if (e.target.id === "actions") {
+                    closePanel();
+                }
+            });
+    </script>
+</body>
+
+</html>
