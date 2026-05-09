@@ -46,15 +46,15 @@
         }
 
         #notepad>table>thead {
-            line-height: 8dvh;
-            font-size: 2dvh;
+            line-height: 10dvw;
+            font-size: 4dvw;
             color: white;
             background: sienna;
         }
 
         #notepad>table>tbody {
-            line-height: 6dvh;
-            font-size: 4dvh;
+            line-height: 12dvw;
+            font-size: 8dvw;
             text-align: center;
         }
 
@@ -68,15 +68,13 @@
             position: fixed;
             inset: 0;
             background: rgba(0, 0, 0, .9);
-            color:white;
-            font-size: xxx-large;
-
+            font-size: 4dvw;
+            color: white;
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-
-            z-index: 999999;
+            z-index: 10;
         }
 
         .panel button {
@@ -85,16 +83,17 @@
 
         #menuBar {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-
-            display: flex;
+            width: 100dvw;
+            height: 10dvw;
+            display: none;
             justify-content: flex-end;
+            background: rgba(0, 0, 0, .9);
+            background-color: black;
+            z-index: 100;
         }
 
         #menuBar>button {
-            font-size: 5dvh;
+            font-size: 6dvw;
             border: none;
             background: transparent;
         }
@@ -102,11 +101,19 @@
 </head>
 
 <body>
+
     <div id="notepad">
+        <div id="menuBar">
+            <button id="newGameBtn" onclick="createNewGame()">🆕</button>
+            <button id="sessionBtn" onclick="toggleSession()">⏺️</button>
+            <button onclick="showSession()">🏆</button>
+            <button onclick="openLeague()">📊</button>
+            <button onclick="undo()">↩️</button>
+        </div>
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th onclick="document.getElementById('menuBar').style.display = 'flex';">#</th>
                     <th class="playerName" onclick="selectPlayer(this,0)">Serkan</th>
                     <th class="playerName" onclick="selectPlayer(this,1)">Deniz</th>
                     <th class="playerName" onclick="selectPlayer(this,2)">Fırat</th>
@@ -119,7 +126,7 @@
 
     <div id="actionsPanel" class="panel">
         <table style="text-align: center;">
-            <tr style="font-size: 2dvh;">
+            <tr style="font-size: smaller;">
                 <td>Gösterge</td>
                 <td>Ceza</td>
                 <td>Renk</td>
@@ -141,7 +148,6 @@
                 <td id="okeyValue">+4</td>
             </tr>
         </table>
-
     </div>
 
     <div id="leaguePanel" class="panel">
@@ -152,14 +158,6 @@
     <div id="sessionPanel" class="panel">
         <b>Oturum Puan Durumu</b>
         <div id="sessionTable"></div>
-    </div>
-
-    <div id="menuBar">
-        <button id="newGameBtn" onclick="createNewGame()">🆕</button>
-        <button id="sessionBtn" onclick="toggleSession()">⏺️</button>
-        <button onclick="showSession()">🏆</button>
-        <button onclick="openLeague()">📊</button>
-        <button onclick="undo()">↩️</button>
     </div>
 
     <script type="module">
@@ -454,7 +452,6 @@
             }
             await set(refState, state);
             document.getElementById("sessionBtn").innerText = sessionOpen ? "⏹️" : "⏺️";
-
         };
 
         window.showSession = async function () {
@@ -470,7 +467,6 @@
             html += "</ol>";
             document.getElementById("sessionTable").innerHTML = html;
             document.getElementById("sessionPanel").style.display = "flex";
-
         }
 
         window.closeSession = function () {
@@ -591,6 +587,7 @@
                 }
             }
             await saveGame();
+            document.getElementById("menuBar").style.display = "none";
         }
 
         // =========================================================
