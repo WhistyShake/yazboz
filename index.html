@@ -96,6 +96,7 @@
         <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
         <button id="sessionBtn" onclick="toggleSession()"></button>
         <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
+        <p style="font-size: 3dvw;">YazBoz 1.0 by F.AKS. 13.05.2026</p>
     </div>
 
     <div id="notepad">
@@ -114,11 +115,11 @@
     </div>
 
     <div id="actionsPanel" class="panel">
-        <button id="gostergeButton" onclick="applyScore(1)">➕ +1</button>
-        <button id="penaltyButton" onclick="applyScore(-2)">➖ -2</button>
-        <button id="doubleButton" onclick="toggleDouble()">✖️ x1</button>
-        <button id="normalButton" onclick="applyScore(2)">✔️ +2</button>
-        <button id="okeyButton" onclick="applyScore(4)">⭕️ +4</button>
+        <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕ 1</button>
+        <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖ 2</button>
+        <button id="doubleButton" onclick="toggleDouble()">Renk ✖️ 1</button>
+        <button id="normalButton" onclick="applyScore(2)">Normal ✔️ 2</button>
+        <button id="okeyButton" onclick="applyScore(4)">Okey ⭕️ 4</button>
     </div>
 
     <script type="module">
@@ -187,7 +188,7 @@
             const snapL = await get(ref(db, "league"));
             const league = snapL.exists() ? snapL.val() : {};
             const rows = Object.entries(league).sort((a, b) => b[1] - a[1]);
-            let html = "<b>7. Lig</b><br><small style='font-size : 4dvw;'>12.02.2026</small><ol>";
+            let html = "<b>7. Lig</b><br><small style='font-size : 4dvw;'>14.04.2026</small><ol>";
             rows.forEach(([name, point]) => {
                 html += `<li>${name} (${point})</li>`;
             });
@@ -231,10 +232,10 @@
         window.toggleDouble = function (btn) {
             gameState.doubleMode = !gameState.doubleMode; // Çift modu aç/kapat
             gameState.baseScore = gameState.doubleMode ? 4 : 2; // Temel skoru güncelle
-            doubleButton.innerText = gameState.doubleMode ? "❌ x2" : "✖️ x1"; // Buton metnini güncelle
-            penaltyButton.innerText = gameState.doubleMode ? "➖ -4" : "➖ -2"; // Ceza butonunu güncelle
-            normalButton.innerText = gameState.doubleMode ? "➕ +4" : "➕ +2"; // Normal butonunu güncelle
-            okeyButton.innerText = gameState.doubleMode ? "⭕️ +8" : "⭕️ +4"; // Okey butonunu güncelle
+            doubleButton.innerText = gameState.doubleMode ? "Renk ❌ 2" : "Renk ✖️ 1"; // Buton metnini güncelle
+            penaltyButton.innerText = gameState.doubleMode ? "Ceza ➖ 4" : "Ceza ➖ 2"; // Ceza butonunu güncelle
+            normalButton.innerText = gameState.doubleMode ? "Normal ➕ 4" : "Normal ➕ 2"; // Normal butonunu güncelle
+            okeyButton.innerText = gameState.doubleMode ? "Okey ⭕️ 8" : "Okey ⭕️ 4"; // Okey butonunu güncelle
         }
 
         window.applyScore = async function (value) {
@@ -283,10 +284,10 @@
             gameState.activePlayer = null; // Aktif oyuncuyu temizle
             gameState.doubleMode = false; // Çift modu kapat
             gameState.baseScore = 2; // Temel skoru sıfırla
-            doubleButton.innerText = "✖️ x1"; // Çift butonunu sıfırla
-            penaltyButton.innerText = "➖ -2"; // Ceza butonunu sıfırla
-            normalButton.innerText = "➕ +2"; // Normal butonu sıfırla
-            okeyButton.innerText = "⭕️ +4"; // Okey butonu sıfırla
+            doubleButton.innerText = "Renk ✖️ 1"; // Çift butonunu sıfırla
+            penaltyButton.innerText = "Ceza ➖ 2"; // Ceza butonunu sıfırla
+            normalButton.innerText = "Normal ➕ 2"; // Normal butonu sıfırla
+            okeyButton.innerText = "Okey ⭕️ 4"; // Okey butonu sıfırla
             actionsPanel.style.display = "none"; // Aksiyon panelini gizle
         }
 
