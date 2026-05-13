@@ -77,12 +77,13 @@
         }
 
         .panel button {
-            font-size: 6dvw;
+            font-size: 4dvw;
             width: 50dvw;
+            padding: 2%;
         }
 
         #historyList {
-            width: 90dvw;
+            width: 90%;
             font-family: monospace;
             font-size: 3dvw;
             max-height: 40dvh;
@@ -93,23 +94,6 @@
 </head>
 
 <body>
-
-    <div id="menuPanel" class="panel">
-
-        <table style="width:90dvw">
-            <tr>
-                <td id="leagueTable"></td>
-                <td id="sessionTable"></td>
-            </tr>
-        </table>
-        <p id="historyList"></p> <br>
-        <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
-        <button id="sessionBtn" onclick="toggleSession()"></button>
-        <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
-        <p style="font-size:3dvw">YazBoz 1.0 by F.AKS. 13.05.2026</p>
-
-    </div>
-
     <div id="notepad">
         <table>
             <thead>
@@ -125,11 +109,31 @@
         </table>
     </div>
 
+    <div id="menuPanel" class="panel" style="background-color: black;">
+        <table width="90%">
+            <thead style="background-color: sienna;">
+                <tr>
+                    <th id="leagueHeader" align="left">7. Lig<br><small style="font-size:3dvw">14.04.2026</small></th>
+                    <th id="sessionHeader" align="right"></th>
+                </tr>
+            </thead>
+            <tr>
+                <td id="leagueTable" align="left"></td>
+                <td id="sessionTable" align="right"></td>
+            </tr>
+        </table>
+        <p id="historyList"></p><br>
+        <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
+        <button id="sessionBtn" onclick="toggleSession()"></button>
+        <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
+        <p style="font-size:3dvw">YazBoz 1.0 by F.AKS. 13.05.2026</p>
+    </div>
+
     <div id="actionsPanel" class="panel">
         <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕ 1</button>
         <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖ 2</button>
         <button id="doubleButton" onclick="toggleDouble()">Renk ✖️ 1</button>
-        <button id="normalButton" onclick="applyScore(2)">Normal ✔️ 2</button>
+        <button id="normalButton" onclick="applyScore(2)">Bitti ✔️ 2</button>
         <button id="okeyButton" onclick="applyScore(4)">Okey ⭕️ 4</button>
     </div>
 
@@ -192,7 +196,7 @@
                 const entries = Object.values(snap.val())
                     .sort((a, b) => b.ts - a.ts);
                 historyList.innerHTML = entries.map(e =>
-                    `<div class="log-${e.type}">${e.time} : ${e.text}</div>`
+                    `<div class="log-${e.type}"><span style="color : gray;">${e.time}</span> : ${e.text}</div>`
                 ).join("");
             });
         }
@@ -230,33 +234,29 @@
             const snap = await get(ref(db, "league"));
             const league = snap.exists() ? snap.val() : {};
             const sorted = Object.entries(league).sort((a, b) => b[1] - a[1]);
-            leagueTable.innerHTML =
-                `<b>7. Lig</b><br><small style="font-size:4dvw">14.04.2026</small><ol>` +
-                sorted.map(([n, p]) => `<li>${n} (${p})</li>`).join("") +
-                `</ol>`;
+            leagueTable.innerHTML = sorted.map(([n, p]) => `(${p}) ${n}<br>`).join("");
         }
 
-        // ── Oturum tablosu ──────────────────────────────────────────────────
         async function renderSession() {
             const snap = await get(ref(db, "sessionState"));
             if (!snap.exists()) return;
             const s = snap.val();
             const id = s.isOpen ? s.currentSessionId : s.lastClosedSessionId;
-            const color = s.isOpen ? "white" : "gray"; // Kapalıysa gri
-            if (!id) { sessionTable.innerHTML = ""; return; }
+            const color = s.isOpen ? "white" : "darkgray";
+            if (!id) { sessionTable.innerHTML = ""; sessionHeader.innerHTML = ""; return; }
 
             const sSnap = await get(ref(db, "sessions/" + id));
             if (!sSnap.exists()) return;
             const session = sSnap.val();
             const sorted = Object.entries(session.scores).sort((a, b) => b[1] - a[1]);
-            const date = new Date(session.createdAt).toLocaleString("tr-TR");
+            const date = new Date(session.createdAt).toLocaleString("tr-TR", {
+                day: "2-digit", month: "2-digit", year: "2-digit"
+            });
 
-            sessionTable.innerHTML =
-                `<span style="color:${color}">` +
-                `<b>${session.sessionNumber}. Oturum</b><br>` +
-                `<small style="font-size:4dvw">${date}</small><ol>` +
-                sorted.map(([n, p]) => `<li>${n} (${p})</li>`).join("") +
-                `</ol></span>`;
+            sessionHeader.innerHTML = `<span style="color:${color}">${session.sessionNumber}. Oturum<br><small style="font-size:3dvw">${date}</small></span>`;
+            sessionTable.innerHTML = `<span style="color:${color}">` +
+                sorted.map(([n, p]) => `${n} (${p})<br>`).join("") +
+                `</span>`;
         }
 
         // ── Oyuncu seçimi ───────────────────────────────────────────────────
@@ -278,7 +278,7 @@
             const x = state.doubleMode;
             doubleButton.innerText = x ? "Renk ❌ 2" : "Renk ✖️ 1";
             penaltyButton.innerText = x ? "Ceza ➖ 4" : "Ceza ➖ 2";
-            normalButton.innerText = x ? "Normal ➕ 4" : "Normal ➕ 2";
+            normalButton.innerText = x ? "Bitti ✔️ 4" : "Bitti ✔️ 2";
             okeyButton.innerText = x ? "Okey ⭕️ 8" : "Okey ⭕️ 4";
         };
 
@@ -292,10 +292,10 @@
             // Log metni
             const renk = double ? "renge" : "";
             let logText, logType;
-            if (rawValue === 1) { logText = `${round}. elde ${player} gösterge gösterdi.`; logType = "info"; }
-            else if (rawValue < 0) { logText = `${round}. elde ${player} ${renk} ceza aldı.`; logType = "penalty"; }
-            else if (rawValue === 2) { logText = `${round}. elde ${player} ${renk} bitti.`; logType = "win"; }
-            else if (rawValue === 4) { logText = `${round}. elde ${player} ${renk} bastı.`; logType = "win"; }
+            if (rawValue === 1) { logText = `${round}. elde ${player} gösterge gösterdi`; logType = "info"; }
+            else if (rawValue < 0) { logText = `${round}. elde ${player} ${renk} ceza aldı`; logType = "penalty"; }
+            else if (rawValue === 2) { logText = `${round}. elde ${player} ${renk} bitti`; logType = "win"; }
+            else if (rawValue === 4) { logText = `${round}. elde ${player} ${renk} bastı`; logType = "win"; }
 
             await runTransaction(ref(db, "games/" + gameId), g => {
                 if (!g || g.finished) return g;
@@ -333,7 +333,7 @@
             state.doubleMode = false;
             doubleButton.innerText = "Renk ✖️ 1";
             penaltyButton.innerText = "Ceza ➖ 2";
-            normalButton.innerText = "Normal ➕ 2";
+            normalButton.innerText = "Bitti ✔️ 2";
             okeyButton.innerText = "Okey ⭕️ 4";
             actionsPanel.style.display = "none";
         }
@@ -370,24 +370,23 @@
                 lastFinished = true;
                 updateScores();
             }
-            if (!state.finished) { lastFinished = false; finalSnap = null; }
-
+            if (!state.finished) { lastFinished = false; finalSnap = null; updatingScores = false; }
             newGameBtn.disabled = !state.finished;
         }
 
         // ── Puan güncelleme ─────────────────────────────────────────────────
+        let updatingScores = false;
+
         async function updateScores() {
+            if (updatingScores) return;
+            updatingScores = true;
+
             const snap = await get(ref(db, "games/" + gameId));
-            if (!snap.exists() || snap.val().scoresUpdated) return;
+            if (!snap.exists() || snap.val().scoresUpdated) { updatingScores = false; return; }
 
             const ranking = state.finalRanking ||
                 [...state.scores].map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map(r => r.i);
             const [first, second] = ranking;
-
-            // Oyun bitiş logu
-            const resultText = ranking.map((pi, rank) =>
-                `${MEDALS[rank]} ${PLAYERS[pi]}`).join(", ");
-            await log(`${gameNumber}. oyun bitti — ${resultText}`, "game");
 
             const sState = await get(ref(db, "sessionState"));
             if (!sState.exists()) return;
@@ -414,6 +413,13 @@
             await set(refL, league);
 
             await set(ref(db, "games/" + gameId + "/scoresUpdated"), true);
+
+            // Oyun bitiş logu
+            const resultText = ranking.map((pi, rank) =>
+                `${MEDALS[rank]} ${PLAYERS[pi]}`).join(", ");
+            await log(`${gameNumber}. oyun bitti`, "game");
+
+            updatingScores = false;
         }
 
         // ── Yeni oyun ───────────────────────────────────────────────────────
@@ -442,6 +448,7 @@
             await log(`${count}. oyun başladı`, "game"); // Başlangıç logu
             listenGame();
             render();
+            menuPanel.style.display = "none";
         };
 
         // ── Oturum aç/kapat ─────────────────────────────────────────────────
@@ -474,7 +481,7 @@
         onValue(ref(db, "sessionState"), snap => {
             if (!snap.exists()) return;
             const s = snap.val();
-            sessionBtn.innerText = s.isOpen ? "Oturumu Sonlandır" : "Yeni Oturum";
+            sessionBtn.innerText = s.isOpen ? "Oturumu Kapat" : "Yeni Oturum";
         });
 
         // ── Geri al ─────────────────────────────────────────────────────────
