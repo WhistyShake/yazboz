@@ -51,8 +51,8 @@
         }
 
         #notepad>table>tbody {
-            font-size: 100%;
-            line-height: 12dvw;
+            font-size: 8dvw;
+            line-height: 1.5;
             text-align: center;
         }
 
@@ -66,9 +66,9 @@
         .panel {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, .9);
             font-size: 6dvw;
             color: white;
+            background: rgba(0, 0, 0, .9);
             display: none;
             flex-direction: column;
             justify-content: center;
@@ -76,17 +76,23 @@
             z-index: 10;
         }
 
+        #menuPanel {
+            justify-content: flex-start;
+        }
+
         .panel button {
-            font-size: 4dvw;
-            width: 50dvw;
+            font-size: 6dvw;
+            width: 60%;
+            height: 10%;
             padding: 2%;
+            margin: 2%;
         }
 
         #historyList {
             width: 90%;
+            height: 40%;
             font-family: monospace;
             font-size: 3dvw;
-            max-height: 40dvh;
             overflow-y: auto;
             scrollbar-width: none;
         }
@@ -110,19 +116,20 @@
     </div>
 
     <div id="menuPanel" class="panel" style="background-color: black;">
-        <table width="90%">
+        <table width="100%">
             <thead style="background-color: sienna;">
-                <tr>
-                    <th id="leagueHeader" align="left">7. Lig<br><small style="font-size:3dvw">14.04.2026</small></th>
-                    <th id="sessionHeader" align="right"></th>
+                <tr style="line-height: 1,5;">
+                    <th id="leagueHeader" align="left" style="padding-left: 5%;">7. Lig<br><span
+                            style="font-size:4dvw; display:block; margin-top: 0;">14.04.2026</span></th>
+                    <th id="sessionHeader" align="right" style="padding-right: 5%;"></th>
                 </tr>
             </thead>
             <tr>
-                <td id="leagueTable" align="left"></td>
-                <td id="sessionTable" align="right"></td>
+                <td id="leagueTable" align="left" style="padding-left: 5%;"></td>
+                <td id="sessionTable" align="right" style="padding-right: 5%;"></td>
             </tr>
-        </table>
-        <p id="historyList"></p><br>
+        </table><br>
+        <div id="historyList"></div><br>
         <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
         <button id="sessionBtn" onclick="toggleSession()"></button>
         <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
@@ -244,7 +251,7 @@
             const sorted = Object.entries(session.scores).sort((a, b) => b[1] - a[1]);
             const date = new Date(session.createdAt).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
-            sessionHeader.innerHTML = `<span style="color:${color}">${session.sessionNumber}. Oturum<br><small style="font-size:3dvw">${date}</small></span>`;
+            sessionHeader.innerHTML = `<span style="color:${color}">${session.sessionNumber}. Oturum<br><span style="font-size : 4dvw; display:block; margin-top: 0;">${date}</span></span>`;
             sessionTable.innerHTML = `<span style="color:${color}">` + sorted.map(([n, p]) => `${n} (${p})<br>`).join("") + `</span>`;
         }
 
