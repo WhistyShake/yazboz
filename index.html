@@ -68,7 +68,7 @@
             inset: 0;
             font-size: 6dvw;
             color: white;
-            background: rgba(0, 0, 0, .9);
+            background: rgba(0, 0, 0, .8);
             display: none;
             flex-direction: column;
             justify-content: center;
@@ -119,21 +119,22 @@
         <table width="100%">
             <thead style="background-color: sienna;">
                 <tr style="line-height: 1,5;">
-                    <th id="leagueHeader" align="left" style="padding-left: 5%;">7. Lig<br><span
-                            style="font-size:4dvw; display:block; margin-top: 0;">14.04.2026</span></th>
-                    <th id="sessionHeader" align="right" style="padding-right: 5%;"></th>
+                    <th id="leagueHeader" align="right" style="padding-right: 5%; border-right: 1px solid red;">7. Lig<br>
+                        <span style="font-size:3dvw; display:block; font-weight: normal;">14.04.2026</span>
+                    </th>
+                    <th id="sessionHeader" align="left" style="padding-left: 5%; "></th>
                 </tr>
             </thead>
             <tr>
-                <td id="leagueTable" align="left" style="padding-left: 5%;"></td>
-                <td id="sessionTable" align="right" style="padding-right: 5%;"></td>
+                <td id="leagueTable" align="right" style="padding-right: 5%; border-right: 1px solid red;"></td>
+                <td id="sessionTable" align="left" style="padding-left: 5%;"></td>
             </tr>
         </table><br>
         <div id="historyList"></div><br>
         <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
         <button id="sessionBtn" onclick="toggleSession()"></button>
         <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
-        <p style="font-size:3dvw">YazBoz 1.0 by F.AKS. 13.05.2026</p>
+        <p style="font-size:3dvw">YazBoz 1.1 by F.AKS. 15.05.2026</p>
     </div>
 
     <div id="actionsPanel" class="panel">
@@ -232,7 +233,7 @@
             const league = snap.exists() ? snap.val() : {};
             const sorted = Object.entries(league).sort((a, b) => b[1] - a[1]);
 
-            leagueTable.innerHTML = sorted.map(([n, p]) => `(${p}) ${n}<br>`).join("");
+            leagueTable.innerHTML = sorted.map(([n, p]) => `${n} (${p})<br>`).join("");
         }
 
         async function renderSession() {
@@ -241,7 +242,7 @@
 
             const s = snap.val();
             const id = s.isOpen ? s.currentSessionId : s.lastClosedSessionId;
-            const color = s.isOpen ? "white" : "darkgray";
+            const color = s.isOpen ? "white" : "gray";
             if (!id) { sessionTable.innerHTML = ""; sessionHeader.innerHTML = ""; return; }
 
             const sSnap = await get(ref(db, "sessions/" + id));
@@ -251,8 +252,9 @@
             const sorted = Object.entries(session.scores).sort((a, b) => b[1] - a[1]);
             const date = new Date(session.createdAt).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
-            sessionHeader.innerHTML = `<span style="color:${color}">${session.sessionNumber}. Oturum<br><span style="font-size : 4dvw; display:block; margin-top: 0;">${date}</span></span>`;
-            sessionTable.innerHTML = `<span style="color:${color}">` + sorted.map(([n, p]) => `${n} (${p})<br>`).join("") + `</span>`;
+            sessionHeader.innerHTML = `<span style="color:${color}">${session.sessionNumber}. Oturum<br>
+                <span style="font-size : 3dvw; display:block; font-weight: normal;">${date}</span></span>`;
+            sessionTable.innerHTML = `<span style="color:${color}">` + sorted.map(([n, p]) => `(${p}) ${n}<br>`).join("") + `</span>`;
         }
 
         window.selectPlayer = function (el, index) {
@@ -346,9 +348,17 @@
             }
 
             const src = state.scores;
-            const ranking = state.finalRanking || (state.finished ? [...src].map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map(r => r.i) : null);
+            const ranking = state.finalRanking || (state.finished ? [...src]
+                .map((s, i) => ({ i, s }))
+                .sort((a, b) => b.s - a.s)
+                .map(r => r.i): null);
 
-            scoreTable.innerHTML = `<tr><td>0</td>${START.map(s => `<td>${s}</td>`).join("")}</tr>` + state.rows.map(r => `<tr><td>${r.round}</td>` + r.scores.map((s, i) => i === r.player ? `<td style="color:red;font-weight:bold">${r.value > 0 ? "+" : ""}${r.value}</td>` : `<td>${s}</td>`).join("") + `</tr>`).join("");
+            scoreTable.innerHTML = `<tr><td>0</td>${START.map(s => `<td>${s}</td>`).join("")}</tr>` +
+                state.rows.map(r => `<tr><td>${r.round}</td>` +
+                    r.scores.map((s, i) => i === r.player
+                        ? `<td style="color : red; font-weight : bold">${r.value > 0 ? "+" : ""}${r.value}</td>`
+                        : `<td>${s}</td>`
+                    ).join("") + `</tr>`).join("");
 
             if (state.finished && ranking) {
                 const icons = ["🥇", "🥈", "", ""];
@@ -363,7 +373,7 @@
                 lastFinished = true;
                 updateScores();
             }
-            if (!state.finished) { lastFinished = false; } // FIX #5: updatingScores buradan kaldırıldı
+            if (!state.finished) { lastFinished = false; }
             const gameOngoing = !!(gameId && !state.finished);
             newGameBtn.disabled = !!(sessionOpen && gameOngoing);
             newGameBtn.innerText = gameId && !sessionOpen && gameOngoing ? "Oyunu Kapat" : "Yeni Oyun";
