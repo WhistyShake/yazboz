@@ -8,7 +8,6 @@ body {
     overflow: hidden;
 }
 
-/* NOTEPAD */
 #notepad {
     position: relative;
     display: flex;
@@ -56,135 +55,33 @@ body {
     vertical-align: top;
 }
 
-/* PANELS */
-.panel {
+#menuPanel {
     position: fixed;
     inset: 0;
     color: white;
     background: rgba(0, 0, 0, .95);
     display: none;
     flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
     z-index: 10;
 }
 
-.panel-header {
-    font-family: monospace;
-    font-size: 4dvw;
+#menuPanel>table {
+    width: 100%;
+}
+
+#menuPanel>table>thead {
     background: sienna;
-    margin: 0;
-    padding: 3dvw 5dvw;
-    color: white;
-    flex-shrink: 0;
+    line-height: 3;
 }
 
-.panel-body {
-    flex: 1;
+#menuPanel>table>tbody {
+    justify-content: space-between
+}
+
+#historyList {
+    display: block;
+    height: 50dvh;
     overflow-y: auto;
-    padding: 3dvw 5dvw;
-    scrollbar-width: none;
 }
-
-/* STATS PANEL LAYOUT */
-.stats-row {
-    display: flex;
-    gap: 3dvw;
-    padding: 3dvw 3dvw 0;
-    flex-shrink: 0;
-}
-
-.stats-col {
-    flex: 1;
-}
-
-.stats-col-title {
-    font-family: monospace;
-    font-size: 3dvw;
-    color: sienna;
-    border-bottom: 1px solid sienna;
-    padding-bottom: 1dvw;
-    margin-bottom: 1.5dvw;
-}
-
-.stats-entry {
-    display: flex;
-    justify-content: space-between;
-    padding: 1dvw 0;
-    border-bottom: 1px solid #222;
-    font-family: monospace;
-    font-size: 3.5dvw;
-}
-
-.history-section {
-    flex: 1;
-    overflow-y: auto;
-    padding: 3dvw;
-    scrollbar-width: none;
-}
-
-.history-section-title {
-    font-family: monospace;
-    font-size: 3dvw;
-    color: sienna;
-    border-bottom: 1px solid sienna;
-    padding-bottom: 1dvw;
-    margin-bottom: 1.5dvw;
-}
-
-.history-entry {
-    font-family: monospace;
-    font-size: 3dvw;
-    padding: 0.8dvw 0;
-    border-bottom: 1px solid #111;
-}
-
-/* PANEL CONTROL BUTTONS (admin only) */
-.panel-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 2dvw;
-    padding: 3dvw;
-    flex-shrink: 0;
-    border-top: 1px solid #222;
-}
-
-.panel-controls button {
-    font-family: monospace;
-    font-size: 5dvw;
-    padding: 2.5dvw 2dvw;
-    cursor: pointer;
-    border: none;
-    background: #222;
-    color: white;
-}
-
-.panel-controls button:disabled {
-    opacity: 0.35;
-    cursor: default;
-}
-
-#endDayBtn {
-    background: #5a0000 !important;
-    border: 2px solid darkred !important;
-}
-
-/* FAB BUTTONS */
-.fab {
-    position: fixed;
-    right: 4dvw;
-    width: 13dvw;
-    height: 13dvw;
-    border-radius: 50%;
-    border: 2px solid #444;
-    background: #1a1a1a;
-    color: white;
-    font-size: 5.5dvw;
-    cursor: pointer;
-    z-index: 5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.6);
-}
-
-#statsBtn  { bottom: 4dvw; }
-#logBtn    { bottom: 20dvw; }
