@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Okey Yazboz — Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* ACTIONS PANEL */
+        #actionsPanel {
+            justify-content: center;
+            align-items: center;
+        }
+
+        #actionsPanel button {
+            font-family: monospace;
+            font-size: 6dvw;
+            width: 70%;
+            padding: 3dvw 2dvw;
+            margin: 1.5dvw 0;
+            cursor: pointer;
+            border: none;
+            background: #222;
+            color: white;
+        }
+
+        /* CHAMPION PANEL */
+        #championPanel {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        #championPanel h1 {
+            font-family: monospace;
+            font-size: 8dvw;
+            color: gold;
+            text-shadow: 0 0 20px orange;
+            margin-bottom: 5dvw;
+        }
+
+        #podiumContent {
+            font-family: monospace;
+            font-size: 5dvw;
+            line-height: 2.5;
+        }
+
+        #championPanel button {
+            font-family: monospace;
+            font-size: 5dvw;
+            margin-top: 6dvw;
+            padding: 2dvw 8dvw;
+            background: sienna;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="notepad">
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="openMenu()">#</th>
+                    <th name="playerName" onclick="selectPlayer(this,0)">Serkan</th>
+                    <th name="playerName" onclick="selectPlayer(this,1)">Deniz</th>
+                    <th name="playerName" onclick="selectPlayer(this,2)">Fırat</th>
+                    <th name="playerName" onclick="selectPlayer(this,3)">Berkay</th>
+                </tr>
+            </thead>
+            <tbody id="scoreTable"></tbody>
+        </table>
+    </div>
+
+    <button class="fab" id="statsBtn" onclick="openMenu()">📊</button>
+    <button class="fab" id="logBtn" onclick="openMenu()">📋</button>
+
+    <div id="menuPanel" class="panel" onclick="if(event.target===this)this.style.display='none'">
+        <div class="panel-header">📊 Puan & Geçmiş</div>
+        <div class="stats-row">
+            <div class="stats-col">
+                <div class="stats-col-title">Lig</div>
+                <div id="leagueStats"></div>
+            </div>
+            <div class="stats-col">
+                <div class="stats-col-title">Bugün</div>
+                <div id="todayStats"></div>
+            </div>
+        </div>
+        <div class="history-section">
+            <div class="history-section-title">Geçmiş</div>
+            <div id="gameStatusBar"></div>
+            <div id="historyList"></div>
+        </div>
+        <div class="panel-controls">
+            <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
+            <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
+            <button id="endDayBtn" onclick="endDay()">🏆 Günü Bitir</button>
+        </div>
+    </div>
+
+    <div id="actionsPanel" class="panel" onclick="if(event.target===this)closeActionsPanel()">
+        <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕ 1</button>
+        <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖ 2</button>
+        <button id="doubleButton" onclick="toggleDouble()">Renk ✖️ 1</button>
+        <button id="normalButton" onclick="applyScore(2)">Bitti ✔️ 2</button>
+        <button id="okeyButton" onclick="applyScore(4)">Okey ⭕️ 4</button>
+    </div>
+
+    <div id="championPanel" class="panel">
+        <h1>🏆 Gün Bitti!</h1>
+        <div id="podiumContent"></div>
+        <button onclick="document.getElementById('championPanel').style.display='none'">Kapat</button>
+    </div>
+
+    <script type="module">
+
+        import { getDatabase, ref, get, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+        import { PLAYERS, START, db, todayKey, renderGameStatus, renderStatsEngine, renderScoreTable } from "./shared.js";
+
+        const MEDALS = ["1.", "2.", "3.", "4."];
+
+        let gameId = null;
+        let gameNumber = 0;
+        let lastFinished = false;
+        let unsubscribeGame = null;
+        let state = { scores: [...START], activePlayer: null, round: 0, doubleMode: false, finished: false, rows: [], finalRanking: null };
+
+        init();
+
+        async function init() {
+            const snap = await get(ref(db, "currentGameId"));
+            if (!snap.exists() || !snap.val()) {
+                gameId = null;
+                render();
+                listenHistory();
+                return;
+            }
+            gameId = snap.val();
+            await loadGameNumber();
+            listenGame();
+            listenHistory();
+        }
+
+        async function loadGameNumber() {
+            const snap = await get(ref(db, "games/" + gameId + "/gameNumber"));
+            if (snap.exists()) gameNumber = snap.val();
+        }
+
+        function listenGame() {
+            if (unsubscribeGame) unsubscribeGame();
+            unsubscribeGame = onValue(ref(db, "games/" + gameId), snap => {
+                if (!snap.exists()) return;
+                const g = snap.val();
+                Object.assign(state, {
+                    scores: g.scores || [...START],
+                    rows: g.rows ? Object.values(g.rows) : [],
+                    round: g.round || 0,
+                    finished: g.finished || false,
+                    finalRanking: g.finalRanking || null
+                });
+                render();
+            });
+        }
+
+        function listenHistory() {
+            onValue(ref(db, "history"), snap => {
+                if (!snap.exists()) {
+                    historyList.innerHTML = "";
+                    return;
+                }
+                const entries = Object.values(snap.val()).sort((a, b) => b.ts - a.ts);
+                historyList.innerHTML = entries.map(e => `<div class="history-entry"><span style="color:#555">${e.time}</span> : ${e.text}</div>`).join("");
+            });
+        }
+
+        function render() {
+            if (!gameId) {
+                scoreTable.innerHTML = "";
+                newGameBtn.innerText = "Yeni Oyun";
+                newGameBtn.disabled = false;
+                undoBtn.disabled = true;
+                return;
+            }
+            renderScoreTable(state);
+            if (state.finished && !lastFinished) {
+                lastFinished = true;
+                updateScores();
+            }
+            if (!state.finished) lastFinished = false;
+            newGameBtn.disabled = !!(gameId && !state.finished);
+            undoBtn.disabled = !gameId || state.rows.length === 0;
+        }
+
+        async function updateScores() {
+            let alreadyUpdated = false;
+            await runTransaction(ref(db, "games/" + gameId + "/scoresUpdated"), current => {
+                if (current === true) {
+                    alreadyUpdated = true;
+                    return current;
+                }
+                return true;
+            });
+            if (alreadyUpdated) return;
+            
+            const ranking = state.finalRanking || [...state.scores].map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map(r => r.i);
+            const [first, second] = ranking;
+            const today = todayKey();
+            const resultText = ranking.map((pi, rank) => `${MEDALS[rank]} ${PLAYERS[pi]}`).join(", ");
+            await log(`${gameNumber ?? "?"}. oyun bitti: ${resultText}`, "game");
+            await runTransaction(ref(db, "days/" + today + "/scores"), d => {
+                if (!d) d = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };
+                d[PLAYERS[first]] = (d[PLAYERS[first]] || 0) + 3;
+                d[PLAYERS[second]] = (d[PLAYERS[second]] || 0) + 1;
+                return d;
+            });
+            await runTransaction(ref(db, "league"), league => {
+                if (!league) league = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };
+                PLAYERS.forEach(p => league[p] = league[p] || 0);
+                league[PLAYERS[first]] += 3;
+                league[PLAYERS[second]] += 1;
+                return league;
+            });
+        }
+
+        window.selectPlayer = function (el, index) {
+            if (!gameId || state.finished) return;
+            state.activePlayer = index;
+            document.querySelectorAll('[name="playerName"]').forEach(e => e.style.color = "");
+            el.style.color = "yellow";
+            actionsPanel.style.display = "flex";
+        };
+
+        window.toggleDouble = function () {
+            state.doubleMode = !state.doubleMode;
+            const x = state.doubleMode;
+            doubleButton.innerText = x ? "Renk ❌ 2" : "Renk ✖️ 1";
+            penaltyButton.innerText = x ? "Ceza ➖ 4" : "Ceza ➖ 2";
+            normalButton.innerText = x ? "Bitti ✔️ 4" : "Bitti ✔️ 2";
+            okeyButton.innerText = x ? "Okey ⭕️ 8" : "Okey ⭕️ 4";
+        };
+
+        window.applyScore = async function (rawValue) {
+            const double = state.doubleMode && rawValue !== 1;
+            const value = double ? rawValue * 2 : rawValue;
+            const player = PLAYERS[state.activePlayer];
+            const round = state.round + (rawValue !== 1 ? 1 : 0);
+            const renk = double ? " renge" : "";
+
+            let logText;
+
+            if (rawValue === 1) { logText = `${round}. elde ${player} gösterge gösterdi`; }
+            else if (rawValue < 0) { logText = `${round}. elde ${player}${renk} ceza aldı`; }
+            else if (rawValue === 2) { logText = `${round}. elde ${player}${renk} bitti`; }
+            else if (rawValue === 4) { logText = `${round}. elde ${player}${renk} bastı`; }
+            else { logText = `${round}. elde ${player} (${rawValue})`; }
+
+            await runTransaction(ref(db, "games/" + gameId), g => {
+                if (!g || g.finished) return g;
+
+                const p = state.activePlayer;
+                if (p === null) return g;
+
+                if (value < 0) {
+                    g.scores[p] += value;
+                } else {
+                    for (let i = 0; i < 4; i++)
+                        if (i !== p) g.scores[i] -= value;
+                }
+
+                if (rawValue !== 1) g.round++;
+                g.rows = g.rows || {};
+                const rowIndex = Object.keys(g.rows).length;
+                g.rows[rowIndex] = { round: g.round, scores: [...g.scores], player: p, value };
+                const losers = g.scores.filter(s => s <= 0).length;
+
+                if (losers >= 2 && !g.finished) {
+                    g.finished = true;
+                    g.finalRanking = [...g.scores]
+                        .map((s, i) => ({ i, s }))
+                        .sort((a, b) => b.s - a.s)
+                        .map(r => r.i);
+                }
+                return g;
+            });
+            await log(logText);
+            closeActionsPanel();
+        };
+
+        async function log(text) {
+            const now = new Date();
+            const time = now.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+            await push(ref(db, "history"), { text, time, ts: now.getTime() });
+        }
+
+        window.closeActionsPanel = function () {
+            document.getElementsByName("playerName").forEach(e => e.style.color = "");
+            state.activePlayer = null;
+            state.doubleMode = false;
+            doubleButton.innerText = "Renk ✖️ 1";
+            penaltyButton.innerText = "Ceza ➖ 2";
+            normalButton.innerText = "Bitti ✔️ 2";
+            okeyButton.innerText = "Okey ⭕️ 4";
+            actionsPanel.style.display = "none";
+        };
+
+        window.openMenu = async () => {
+
+            const panel = menuPanel;
+
+            const isOpen = panel.style.display === "flex";
+
+            // toggle davranışı
+            if (isOpen) {
+                panel.style.display = "none";
+                return;
+            }
+
+            panel.style.display = "flex";
+
+            // üst bar güncelle
+            renderGameStatus(gameNumber, state);
+
+            // istatistikleri yükle
+            await renderStatsEngine(db, {
+                league: document.getElementById("leagueStats"),
+                today: document.getElementById("todayStats")
+            });
+        };
+
+
+        // alias fonksiyonlar
+        window.openHistory = () => openMenu();
+        window.openStats = () => openMenu();
+
+
+
+
+
+
+
+
+
+
+
+        // yeni oyun oluştur
+        window.createNewGame = async function () {
+
+            // aktif oyun bitmeden yeni açma
+            if (gameId && !state.finished) return;
+
+            const today = todayKey();
+
+            // günlük oyun sayısını artır
+            const countSnap = await get(ref(db, "days/" + today + "/gameCount"));
+            const count = countSnap.exists() ? countSnap.val() + 1 : 1;
+
+            await set(ref(db, "days/" + today + "/gameCount"), count);
+
+            gameNumber = count;
+
+            // yeni game oluştur
+            const newRef = push(ref(db, "games"));
+
+            await set(newRef, {
+                scores: [...START],
+                round: 0,
+                finished: false,
+                rows: {},
+                gameNumber: count,
+                date: today
+            });
+
+            // currentGameId güncelle
+            await set(ref(db, "currentGameId"), newRef.key);
+
+            gameId = newRef.key;
+
+            // local reset
+            Object.assign(state, {
+                scores: [...START],
+                rows: [],
+                round: 0,
+                finished: false,
+                finalRanking: null
+            });
+
+            lastFinished = false;
+
+            await log(`${count}. oyun başladı`, "game");
+
+            listenGame();
+            render();
+
+            menuPanel.style.display = "none";
+        };
+
+
+        // gün bitir
+        window.endDay = async function () {
+
+            const today = todayKey();
+
+            const snap = await get(ref(db, "days/" + today + "/scores"));
+
+            if (!snap.exists()) {
+                alert("Bugün hiç oyun oynanmadı!");
+                return;
+            }
+
+            const scores = snap.val();
+
+            const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
+            const icons = ["🥇", "🥈", "🥉", ""];
+
+            const dateStr = new Date().toLocaleDateString("tr-TR");
+
+            podiumContent.innerHTML = sorted.map(([n, p], i) =>
+                `${icons[i]} ${n} — ${p} puan`
+            ).join("<br>");
+
+            await log(`Gün bitti (${dateStr}): ${sorted.map(([n, p]) => `${n}(${p})`).join(", ")}`, "day");
+
+            // aktif oyunu kapat
+            await set(ref(db, "currentGameId"), null);
+
+            gameId = null;
+
+            if (unsubscribeGame) {
+                unsubscribeGame();
+                unsubscribeGame = null;
+            }
+
+            Object.assign(state, {
+                scores: [...START],
+                rows: [],
+                round: 0,
+                finished: false,
+                finalRanking: null
+            });
+
+            render();
+
+            menuPanel.style.display = "none";
+            championPanel.style.display = "flex";
+        };
+
+
+        // undo (geri alma)
+        window.undo = async function () {
+
+            if (state.rows.length === 0) return;
+
+            const wasFinished = state.finished;
+            const prevRanking = state.finalRanking;
+
+            // son hamleyi sil
+            state.rows.pop();
+
+            // skorları resetle
+            state.scores = [...START];
+
+            // yeniden hesapla
+            state.rows.forEach(r => {
+                if (r.value < 0) {
+                    state.scores[r.player] += r.value;
+                } else {
+                    for (let i = 0; i < 4; i++)
+                        if (i !== r.player)
+                            state.scores[i] -= r.value;
+                }
+            });
+
+            state.round = state.rows.length > 0
+                ? state.rows[state.rows.length - 1].round
+                : 0;
+
+            state.finished = false;
+            state.finalRanking = null;
+
+            await log(`${gameNumber ?? "?"}. oyun — son hamle geri alındı`, "info");
+
+            // eğer oyun bitmiştiyse puanları geri al
+            if (wasFinished && prevRanking) {
+
+                const today = todayKey();
+
+                await runTransaction(ref(db, "days/" + today + "/scores"), d => {
+                    if (!d) return d;
+
+                    d[PLAYERS[prevRanking[0]]] -= 3;
+                    d[PLAYERS[prevRanking[1]]] -= 1;
+
+                    return d;
+                });
+
+                await runTransaction(ref(db, "league"), league => {
+                    if (!league) return league;
+
+                    league[PLAYERS[prevRanking[0]]] -= 3;
+                    league[PLAYERS[prevRanking[1]]] -= 1;
+
+                    return league;
+                });
+            }
+
+            // Firebase game state güncelle
+            const rowsObj = {};
+            state.rows.forEach((r, i) => rowsObj[i] = r);
+
+            await set(ref(db, "games/" + gameId), {
+                scores: state.scores,
+                rows: rowsObj,
+                round: state.round,
+                finished: false,
+                finalRanking: null,
+                gameNumber,
+                scoresUpdated: false,
+                date: todayKey()
+            });
+
+            menuPanel.style.display = "none";
+        };
+
+    </script>
+</body>
+
+</html>

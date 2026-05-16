@@ -1,0 +1,190 @@
+body {
+    width: 100dvw;
+    height: 100dvh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: black;
+    overflow: hidden;
+}
+
+/* NOTEPAD */
+#notepad {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    background-image: url("background.jpg");
+    background-size: cover;
+    overflow-y: auto;
+}
+
+#notepad::before {
+    position: absolute;
+    content: "";
+    top: 0;
+    bottom: 0;
+    left: 10%;
+    width: 2px;
+    background: red;
+}
+
+#notepad>table {
+    position: relative;
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Rock Salt';
+}
+
+#notepad>table>thead {
+    font-size: 4dvw;
+    line-height: 3;
+    color: white;
+    background: sienna;
+}
+
+#notepad>table>tbody {
+    font-size: 8dvw;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.resultsRow {
+    border-top: 1px solid black;
+    font-weight: bold;
+    color: red;
+    vertical-align: top;
+}
+
+/* PANELS */
+.panel {
+    position: fixed;
+    inset: 0;
+    color: white;
+    background: rgba(0, 0, 0, .95);
+    display: none;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.panel-header {
+    font-family: monospace;
+    font-size: 4dvw;
+    background: sienna;
+    margin: 0;
+    padding: 3dvw 5dvw;
+    color: white;
+    flex-shrink: 0;
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 3dvw 5dvw;
+    scrollbar-width: none;
+}
+
+/* STATS PANEL LAYOUT */
+.stats-row {
+    display: flex;
+    gap: 3dvw;
+    padding: 3dvw 3dvw 0;
+    flex-shrink: 0;
+}
+
+.stats-col {
+    flex: 1;
+}
+
+.stats-col-title {
+    font-family: monospace;
+    font-size: 3dvw;
+    color: sienna;
+    border-bottom: 1px solid sienna;
+    padding-bottom: 1dvw;
+    margin-bottom: 1.5dvw;
+}
+
+.stats-entry {
+    display: flex;
+    justify-content: space-between;
+    padding: 1dvw 0;
+    border-bottom: 1px solid #222;
+    font-family: monospace;
+    font-size: 3.5dvw;
+}
+
+.history-section {
+    flex: 1;
+    overflow-y: auto;
+    padding: 3dvw;
+    scrollbar-width: none;
+}
+
+.history-section-title {
+    font-family: monospace;
+    font-size: 3dvw;
+    color: sienna;
+    border-bottom: 1px solid sienna;
+    padding-bottom: 1dvw;
+    margin-bottom: 1.5dvw;
+}
+
+.history-entry {
+    font-family: monospace;
+    font-size: 3dvw;
+    padding: 0.8dvw 0;
+    border-bottom: 1px solid #111;
+}
+
+/* PANEL CONTROL BUTTONS (admin only) */
+.panel-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2dvw;
+    padding: 3dvw;
+    flex-shrink: 0;
+    border-top: 1px solid #222;
+}
+
+.panel-controls button {
+    font-family: monospace;
+    font-size: 5dvw;
+    padding: 2.5dvw 2dvw;
+    cursor: pointer;
+    border: none;
+    background: #222;
+    color: white;
+}
+
+.panel-controls button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+#endDayBtn {
+    background: #5a0000 !important;
+    border: 2px solid darkred !important;
+}
+
+/* FAB BUTTONS */
+.fab {
+    position: fixed;
+    right: 4dvw;
+    width: 13dvw;
+    height: 13dvw;
+    border-radius: 50%;
+    border: 2px solid #444;
+    background: #1a1a1a;
+    color: white;
+    font-size: 5.5dvw;
+    cursor: pointer;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+
+#statsBtn  { bottom: 4dvw; }
+#logBtn    { bottom: 20dvw; }
