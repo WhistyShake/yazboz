@@ -25,26 +25,49 @@
     </div>
 
     <div id="menuPanel" class="panel" onclick="if(event.target===this)this.style.display='none'">
-        <div class="panel-header">📊 Puan & Geçmiş</div>
-        <div class="stats-row">
-            <div class="stats-col">
-                <div class="stats-col-title">Lig</div>
-                <div id="leagueStats"></div>
-            </div>
-            <div class="stats-col">
-                <div class="stats-col-title">Bugün</div>
-                <div id="todayStats"></div>
-            </div>
-        </div>
-        <div class="history-section">
-            <div class="history-section-title">Geçmiş</div>
-            <div id="gameStatusBar"></div>
-            <div id="historyList"></div>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="2">Puan Durumu</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="titleRow">
+                    <td id="sessionHeader"></td>
+                    <td id="leagueHeader"></td>
+
+                </tr>
+                <tr class="dateRow">
+                    <td id="sessionDateCell"></td>
+                    <td id="leagueDateCell"></td>
+                </tr>
+                <tr>
+                    <td id="sessionStats"></td>
+                    <td id="leagueStats"></td>
+
+                </tr>
+            </tbody>
+        </table>
+        <br>
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="2">Geçmiş</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="titleRow">
+                    <td id="gameStatusBar">status bar</td>
+                </tr>
+                <tr>
+                    <td id="historyList">içerik</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <script type="module">
-        import { db, bindRealtimeGame, bindRealtimeHistory, renderScoreTable, renderGameStatus, renderStatsEngine } from "./shared.js";
+        import { db, bindRealtimeGame, bindRealtimeHistory, renderScoreTable, renderGameStatus, renderStatsEngine, openMenuPanel } from "./shared.js";
 
         bindRealtimeGame(db, (g) => {
             const table = document.getElementById("scoreTable");
@@ -67,13 +90,7 @@
                 ).join("");
         });
 
-        window.openMenuPanel = async function () {
-            document.getElementById("menuPanel").style.display = "flex";
-            await renderStatsEngine(db, {
-                league: document.getElementById("leagueStats"),
-                today: document.getElementById("todayStats")
-            });
-        };
+        window.openMenuPanel = openMenuPanel;
     </script>
 </body>
 

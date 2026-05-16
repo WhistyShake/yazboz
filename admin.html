@@ -45,15 +45,14 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
+                <tr class="titleRow">
                     <td id="sessionHeader"></td>
                     <td id="leagueHeader"></td>
 
                 </tr>
-                <tr>
+                <tr class="dateRow">
                     <td id="sessionDateCell"></td>
                     <td id="leagueDateCell"></td>
-
                 </tr>
                 <tr>
                     <td id="sessionStats"></td>
@@ -62,7 +61,7 @@
                 </tr>
             </tbody>
         </table>
-
+        <br>
         <table>
             <thead>
                 <tr>
@@ -70,7 +69,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
+                <tr class="titleRow">
                     <td id="gameStatusBar">status bar</td>
                 </tr>
                 <tr>
@@ -94,7 +93,7 @@
     <script type="module">
 
         import { getDatabase, ref, get, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-        import { PLAYERS, START, db, todayKey, renderGameStatus, renderStatsEngine, renderScoreTable } from "./shared.js";
+        import { PLAYERS, START, db, todayKey, renderGameStatus, renderStatsEngine, renderScoreTable, openMenuPanel } from "./shared.js";
 
         const MEDALS = ["1.", "2.", "3.", "4."];
 
@@ -296,48 +295,12 @@
         };
 
         window.openMenu = async () => {
-            const panel = menuPanel;
-            const isOpen = panel.style.display === "flex";
-
-            // toggle davranışı
-            if (isOpen) {
-                panel.style.display = "none";
-                return;
-            }
-
-            panel.style.display = "flex";
             renderGameStatus(gameNumber, state);
-
-            const currentSessionSnap = await get(ref(db, "currentSessionKey"));
-            const activeSessionKey = currentSessionSnap.exists() && currentSessionSnap.val() ? currentSessionSnap.val() : null;
-
-            const [sessionNumSnap, leagueNumSnap, sessionDateSnap, leagueDateSnap] = await Promise.all([
-                activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey + "/sessionNumber")) : Promise.resolve({ exists: () => false }),
-                get(ref(db, "league/number")),
-                activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey + "/startDate")) : Promise.resolve({ exists: () => false }),
-                get(ref(db, "league/startDate"))
-            ]);
-            const sessionNum = sessionNumSnap.exists() ? sessionNumSnap.val() : "?";
-            const leagueNum = leagueNumSnap.exists() ? leagueNumSnap.val() : "?";
-            const sessionDate = sessionDateSnap.exists() ? sessionDateSnap.val() : "—";
-            const leagueDate = leagueDateSnap.exists() ? leagueDateSnap.val() : "—";
-            document.getElementById("sessionHeader").textContent = `${sessionNum}. oturum`;
-            document.getElementById("leagueHeader").textContent = `${leagueNum}. lig`;
-            document.getElementById("sessionDateCell").textContent = sessionDate;
-            document.getElementById("leagueDateCell").textContent = leagueDate;
-
-            // istatistikleri yükle
-            await renderStatsEngine(db, {
-                league: document.getElementById("leagueStats"),
-                today: document.getElementById("sessionStats"),
-                sessionKey: activeSessionKey
-            });
+            await openMenuPanel();
         };
 
         window.createNewGame = async function () {
             if (gameId && !state.finished) return;
-
-            // Oturum açık değilse otomatik aç
             let sessionKey;
             const currentSessionSnap = await get(ref(db, "currentSessionKey"));
             if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {
@@ -411,22 +374,14 @@
 
         window.undo = async function () {
             if (state.rows.length === 0) return;
-
             const wasFinished = state.finished;
             const prevRanking = state.finalRanking;
-
-            // Tüm oyun state'ini sunucu tarafında güncelle
             await runTransaction(ref(db, "games/" + gameId), g => {
                 if (!g || !g.rows) return g;
-
                 const keys = Object.keys(g.rows).map(Number).sort((a, b) => a - b);
                 if (keys.length === 0) return g;
-
-                // Son row'u sil
                 const lastKey = keys[keys.length - 1];
                 delete g.rows[lastKey];
-
-                // Skorları sıfırdan hesapla
                 g.scores = [...START];
                 Object.values(g.rows).forEach(r => {
                     if (r.value < 0) {
@@ -436,8 +391,6 @@
                             if (i !== r.player) g.scores[i] -= r.value;
                     }
                 });
-
-                // Round'u güncelle
                 const remaining = Object.values(g.rows);
                 g.round = remaining.length > 0
                     ? remaining[remaining.length - 1].round
@@ -446,11 +399,8 @@
                 g.finished = false;
                 g.finalRanking = null;
                 g.scoresUpdated = false;
-
                 return g;
             });
-
-            // Oyun bitmişse league/session skorlarını geri al
             if (wasFinished && prevRanking) {
                 const sessionKeySnap = await get(ref(db, "currentSessionKey"));
                 const activeSession = sessionKeySnap.exists() && sessionKeySnap.val() ? sessionKeySnap.val() : todayKey();
@@ -467,12 +417,9 @@
                     return league;
                 });
             }
-
             await log(`${gameNumber ?? "?"}. oyun — son hamle geri alındı`);
             menuPanel.style.display = "none";
         };
-
     </script>
 </body>
-
 </html>

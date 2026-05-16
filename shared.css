@@ -69,19 +69,35 @@ body {
 
 #menuPanel>table {
     width: 100%;
+    font-size: 6dvw;
+    font-family: 'Courier New', Courier, monospace
 }
 
 #menuPanel>table>thead {
+    font-size: 10dvw;
+    line-height: 1.5;
     background: sienna;
-    line-height: 3;
 }
 
-#menuPanel>table>tbody {
-    justify-content: space-between
+#menuPanel>table>tbody>tr>td {
+    padding: 0 5%;
+}
+
+.titleRow {
+    font-size: 6dvw;
+    font-weight: bold;
+    text-align: center;
+    background-color: gray;
+}
+
+.dateRow {
+    font-size: 3dvw;
+    text-align: center;
 }
 
 #historyList {
     display: block;
     height: 50dvh;
+    font-size: 3dvw;
     overflow-y: auto;
 }

@@ -44,17 +44,36 @@ export function renderScoreTable(state) {
     }
 }
 
-export function renderGameStatus(gameNumber, state) {
-    const bar = document.getElementById("gameStatusBar");
-    if (!bar) return;
-    if (!gameNumber && state.round === 0) {
-        bar.textContent = "";
-        return;
-    }
-    const gn = gameNumber ? `${gameNumber}. oyun` : "oyun";
-    bar.textContent = state.finished
-        ? `${gn} — bitti`
-        : `${gn}  ·  ${state.round}. el`;
+export async function openMenuPanel() {
+    const panel = document.getElementById("menuPanel");
+    if (panel.style.display === "flex") { panel.style.display = "none"; return; }
+    panel.style.display = "flex";
+
+    const currentSessionSnap = await get(ref(db, "currentSessionKey"));
+    const activeSessionKey = currentSessionSnap.exists() && currentSessionSnap.val() ? currentSessionSnap.val() : null;
+
+    const [sessionNumSnap, leagueNumSnap, sessionDateSnap, leagueDateSnap] = await Promise.all([
+        activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey + "/sessionNumber")) : Promise.resolve({ exists: () => false }),
+        get(ref(db, "league/number")),
+        activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey + "/startDate")) : Promise.resolve({ exists: () => false }),
+        get(ref(db, "league/startDate"))
+    ]);
+
+    const sessionNum = sessionNumSnap.exists() ? sessionNumSnap.val() : "?";
+    const leagueNum = leagueNumSnap.exists() ? leagueNumSnap.val() : "?";
+    const sessionDate = sessionDateSnap.exists() ? sessionDateSnap.val() : "—";
+    const leagueDate = leagueDateSnap.exists() ? leagueDateSnap.val() : "—";
+
+    sessionHeader.innerHTML = `${sessionNum}.Gün`;
+    sessionDateCell.innerHTML = `${sessionDate}`;
+    leagueHeader.innerHTML = `${leagueNum}.Lig`;
+    leagueDateCell.innerHTML = `${leagueDate}`;
+
+    await renderStatsEngine(db, {
+        league: document.getElementById("leagueStats"),
+        today: document.getElementById("sessionStats"),
+        sessionKey: activeSessionKey
+    });
 }
 
 export async function renderStatsEngine(db, targets = {}) {
@@ -63,24 +82,35 @@ export async function renderStatsEngine(db, targets = {}) {
         return Object.entries(data)
             .filter(([name]) => PLAYERS.includes(name))
             .sort((a, b) => b[1] - a[1])
-            .map(([name, score]) => `<div style="display:flex;justify-content:space-between"><span>${name}</span><span>${score}</span></div>`).join("");
+            .map(([name, score]) => `<div style="display : flex; justify-content : space-between;"><span>${name}</span><span>${score}</span></div>`).join("");
     };
     const makeLeague = (data) => {
         if (!data) return "";
         return Object.entries(data)
             .filter(([name]) => PLAYERS.includes(name))
             .sort((a, b) => b[1] - a[1])
-            .map(([name, score]) => `<div style="display:flex;justify-content:space-between"><span>${score}</span><span>${name}</span></div>`).join("");
+            .map(([name, score]) => `<div style="display : flex; justify-content : space-between;"><span>${name}</span><span>${score}</span></div>`).join("");
     };
     const sessionKey = targets.sessionKey || todayKey();
     const [sessionSnap, leagueSnap] = await Promise.all([
         get(ref(db, "sessions/" + sessionKey + "/scores")),
         get(ref(db, "league"))
     ]);
-    if (targets.today)
-        targets.today.innerHTML = makeToday(sessionSnap.exists() ? sessionSnap.val() : null);
-    if (targets.league)
-        targets.league.innerHTML = makeLeague(leagueSnap.exists() ? leagueSnap.val() : null);
+    if (targets.today) targets.today.innerHTML = makeToday(sessionSnap.exists() ? sessionSnap.val() : null);
+    if (targets.league) targets.league.innerHTML = makeLeague(leagueSnap.exists() ? leagueSnap.val() : null);
+}
+
+export function renderGameStatus(gameNumber, state) {
+    const bar = document.getElementById("gameStatusBar");
+    if (!bar) return;
+    if (!gameNumber && state.round === 0) {
+        bar.textContent = "";
+        return;
+    }
+    const gn = gameNumber ? `${gameNumber}.Oyun` : "oyun";
+    bar.textContent = state.finished
+        ? `${gn} bitti`
+        : `${gn} ${state.round}.El`;
 }
 
 let currentGameId = null;
@@ -101,6 +131,17 @@ export function bindRealtimeGame(db, onStateChange) {
     });
 }
 
+export function bindRealtimeHistory(db, onUpdate) {
+    onValue(ref(db, "history"), snap => {
+        if (!snap.exists()) {
+            onUpdate([]);
+            return;
+        }
+        const entries = Object.values(snap.val()).sort((a, b) => b.ts - a.ts);
+        onUpdate(entries);
+    });
+}
+
 function attachGame(db, gameId, onStateChange) {
     if (gameUnsub) gameUnsub();
     const gameRef = ref(db, "games/" + gameId);
@@ -115,16 +156,5 @@ function attachGame(db, gameId, onStateChange) {
             finalRanking: g.finalRanking || null,
             gameNumber: g.gameNumber || null
         });
-    });
-}
-
-export function bindRealtimeHistory(db, onUpdate) {
-    onValue(ref(db, "history"), snap => {
-        if (!snap.exists()) {
-            onUpdate([]);
-            return;
-        }
-        const entries = Object.values(snap.val()).sort((a, b) => b.ts - a.ts);
-        onUpdate(entries);
     });
 }
