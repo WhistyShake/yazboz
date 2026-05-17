@@ -39,7 +39,7 @@ body {
     font-size: 4dvw;
     line-height: 3;
     color: white;
-    background: sienna;
+    background: darkred;
 }
 
 #notepad>table>tbody {
@@ -48,7 +48,7 @@ body {
     text-align: center;
 }
 
-.resultsRow {
+#notepad .resultsRow {
     border-top: 1px solid black;
     font-weight: bold;
     color: red;
@@ -59,40 +59,40 @@ body {
     position: fixed;
     inset: 0;
     color: white;
-    background: rgba(0, 0, 0, .95);
+    background: black;
     display: none;
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
     z-index: 10;
+    overflow: hidden;
 }
 
 #menuPanel>table {
     width: 100%;
-    font-size: 6dvw;
-    font-family: 'Courier New', Courier, monospace
+    font-size: 5dvw;
+    font-family: 'Michroma';
 }
 
 #menuPanel>table>thead {
-    font-size: 10dvw;
-    line-height: 1.5;
-    background: sienna;
+    font-size: 8dvw;
+    line-height: 2;
+    background: darkred;
 }
 
 #menuPanel>table>tbody>tr>td {
-    padding: 0 5%;
+    padding: 0 20px;
 }
 
-.titleRow {
-    font-size: 6dvw;
+#menuPanel .titleRow {
     font-weight: bold;
-    text-align: center;
-    background-color: gray;
+    text-align: right;
+    color: yellow;
 }
 
-.dateRow {
+#menuPanel .dateRow {
     font-size: 3dvw;
-    text-align: center;
+    text-align: right;
 }
 
 #historyList {
@@ -100,4 +100,6 @@ body {
     height: 50dvh;
     font-size: 3dvw;
     overflow-y: auto;
+    scrollbar-width: none;
+    font-family: 'Courier New', Courier, monospace
 }

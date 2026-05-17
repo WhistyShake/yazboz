@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Okey Yazboz — İzleyici</title>
-    <link href="https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Rock+Salt&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="shared.css">
 </head>
 
@@ -14,21 +16,20 @@
             <thead>
                 <tr>
                     <th onclick="openMenuPanel()">#</th>
-                    <th>Serkan</th>
-                    <th>Deniz</th>
-                    <th>Fırat</th>
-                    <th>Berkay</th>
+                    <th name="playerName" onclick="selectPlayer(this,0)">Serkan</th>
+                    <th name="playerName" onclick="selectPlayer(this,1)">Deniz</th>
+                    <th name="playerName" onclick="selectPlayer(this,2)">Fırat</th>
+                    <th name="playerName" onclick="selectPlayer(this,3)">Berkay</th>
                 </tr>
             </thead>
             <tbody id="scoreTable"></tbody>
         </table>
     </div>
-
-    <div id="menuPanel" class="panel" onclick="if(event.target===this)this.style.display='none'">
+    <div id="menuPanel" onclick="this.style.display='none'">
         <table>
             <thead>
                 <tr>
-                    <th colspan="2">Puan Durumu</th>
+                    <th colspan="2">🏆 Puan Durumu</th>
                 </tr>
             </thead>
             <tbody>
@@ -44,7 +45,6 @@
                 <tr>
                     <td id="sessionStats"></td>
                     <td id="leagueStats"></td>
-
                 </tr>
             </tbody>
         </table>
@@ -52,41 +52,68 @@
         <table>
             <thead>
                 <tr>
-                    <th colspan="2">Geçmiş</th>
+                    <th colspan="2">📜 Geçmiş</th>
                 </tr>
             </thead>
             <tbody>
-                <tr class="titleRow">
-                    <td id="gameStatusBar">status bar</td>
+                <tr>
+                    <td id="gameStatusBar"></td>
                 </tr>
                 <tr>
-                    <td id="historyList">içerik</td>
+                    <td id="historyList"></td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script type="module">
-        import { db, bindRealtimeGame, bindRealtimeHistory, renderScoreTable, renderGameStatus, renderStatsEngine, openMenuPanel } from "./shared.js";
+        import { db, renderScoreTable, renderGameStatus, renderStatsEngine, openMenuPanel } from "./shared.js";
+        import { onValue, ref } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
 
-        bindRealtimeGame(db, (g) => {
-            const table = document.getElementById("scoreTable");
-            const bar = document.getElementById("gameStatusBar");
+        // --- Realtime bağlama ---
+        let currentGameId = null;
+        let gameUnsub = null;
 
-            if (!g) {
-                table.innerHTML = `<tr><td colspan="5">oyun bekleniyor...</td></tr>`;
-                bar.textContent = "";
+        function attachGame(gameId) {
+            if (gameUnsub) gameUnsub();
+            gameUnsub = onValue(ref(db, "games/" + gameId), snap => {
+                if (!snap.exists()) return;
+                const g = snap.val();
+                const state = {
+                    scores: g.scores || [],
+                    rows: g.rows ? Object.values(g.rows) : [],
+                    round: g.round || 0,
+                    finished: g.finished || false,
+                    finalRanking: g.finalRanking || null,
+                    gameNumber: g.gameNumber || null
+                };
+                renderScoreTable(state);
+                renderGameStatus(state.gameNumber, state);
+            });
+        }
+
+        onValue(ref(db, "currentGameId"), snap => {
+            const newGameId = snap.exists() ? snap.val() : null;
+            if (newGameId === currentGameId) return;
+            currentGameId = newGameId;
+
+            if (!currentGameId) {
+                if (gameUnsub) gameUnsub();
+                gameUnsub = null;
+                document.getElementById("scoreTable").innerHTML = `<tr><td colspan="5">oyun bekleniyor...</td></tr>`;
+                renderGameStatus(null, { round: 0, finished: false });
                 return;
             }
-
-            renderScoreTable(g);
-            renderGameStatus(g.gameNumber, g);
+            attachGame(currentGameId);
         });
 
-        bindRealtimeHistory(db, (entries) => {
+        onValue(ref(db, "history"), snap => {
+            const entries = snap.exists()
+                ? Object.values(snap.val()).sort((a, b) => b.ts - a.ts)
+                : [];
             document.getElementById("historyList").innerHTML =
                 entries.map(e =>
-                    `<div class="history-entry"><span style="color:#555">${e.time}</span> : ${e.text}</div>`
+                    `<div>${e.text}</div>`
                 ).join("");
         });
 

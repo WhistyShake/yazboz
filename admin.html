@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Okey Yazboz — Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Rock+Salt&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="shared.css">
     <style>
         #actionsPanel {
@@ -17,6 +19,14 @@
             justify-content: center;
             align-items: center;
             z-index: 10;
+        }
+
+        #controlMenu>button {
+            width: 30dvw;
+            font-size: 3dvw;
+            color: white;
+            background-color: transparent;
+            border-style: hidden;
         }
     </style>
 </head>
@@ -36,12 +46,11 @@
             <tbody id="scoreTable"></tbody>
         </table>
     </div>
-
-    <div id="menuPanel" class="panel" onclick="if(event.target===this)this.style.display='none'">
+    <div id="menuPanel" onclick="this.style.display='none'">
         <table>
             <thead>
                 <tr>
-                    <th colspan="2">Puan Durumu</th>
+                    <th colspan="2">🏆 Puan Durumu</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,7 +66,6 @@
                 <tr>
                     <td id="sessionStats"></td>
                     <td id="leagueStats"></td>
-
                 </tr>
             </tbody>
         </table>
@@ -65,23 +73,24 @@
         <table>
             <thead>
                 <tr>
-                    <th colspan="2">Geçmiş</th>
+                    <th colspan="2">📜 Geçmiş</th>
                 </tr>
             </thead>
             <tbody>
-                <tr class="titleRow">
-                    <td id="gameStatusBar">status bar</td>
+                <tr>
+                    <td id="gameStatusBar"></td>
                 </tr>
                 <tr>
-                    <td id="historyList">içerik</td>
+                    <td id="historyList"></td>
                 </tr>
             </tbody>
         </table>
-        <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
-        <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
-        <button id="endDayBtn" onclick="endDay()">Oturumu Kapat</button>
+        <div id="controlMenu">
+            <button id="newGameBtn" onclick="createNewGame()"><span style="font-size: 10dvw;">🆕</span><br>YeniOyun</button>
+            <button id="endDayBtn" onclick="endDay()"><span style="font-size: 10dvw;">⏹️</span><br>Günsonu Al</button>
+            <button id="undoBtn" onclick="undo()"><span style="font-size: 10dvw;">↩️</span><br>Geri Al</button>
+        </div>
     </div>
-
     <div id="actionsPanel" onclick="if(event.target===this)closeActionsPanel()">
         <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕ 1</button>
         <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖ 2</button>
@@ -92,334 +101,662 @@
 
     <script type="module">
 
-        import { getDatabase, ref, get, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-        import { PLAYERS, START, db, todayKey, renderGameStatus, renderStatsEngine, renderScoreTable, openMenuPanel } from "./shared.js";
+        import { getDatabase, ref, get, set, push, onValue, runTransaction }
+            from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+        import { db, PLAYERS, START, renderScoreTable, openMenuPanel, renderStatsEngine, renderGameStatus }
+            from "./shared.js";
 
-        const MEDALS = ["1.", "2.", "3.", "4."];
+        let gameId = null;                                                                      // aktif oyun firebase id
+        let gameNumber = 0;                                                                     // aktif oyunun sıra numarası
+        let lastFinished = false;                                                               // oyun bitti eventi bir kere çalışsın kontrolü
+        let unsubscribeGame = null;                                                             // realtime game listener temizleyici
+        let unsubscribeHistory = null;                                                          // realtime history listener temizleyici
 
-        let gameId = null;
-        let gameNumber = 0;
-        let lastFinished = false;
-        let unsubscribeGame = null;
-        let unsubscribeHistory = null;
-        let state = { scores: [...START], activePlayer: null, round: 0, doubleMode: false, finished: false, rows: [], finalRanking: null };
+        let state = {                                                                           // Uygulamanın canlı state objesi
+            scores: [...START],                                                                 // mevcut skorlar
+            activePlayer: null,                                                                 // seçili oyuncu indexi
+            round: 0,                                                                           // el sayısı
+            doubleMode: false,                                                                  // renge modu açık mı
+            finished: false,                                                                    // oyun bitti mi
+            rows: [],                                                                           // geçmiş satırları
+            finalRanking: null                                                                  // bitince sıralama
+        };
 
-        init();
+        init();                                                                                 // Sayfa açılır açılmaz başlat
 
-        function updateEndDayVisibility(dayOpen) {
-            document.getElementById("endDayBtn").disabled = !dayOpen;
+        /**
+         * updateEndDayVisibility(dayOpen)
+         * ------------------------------------------------------------
+         * "Günü Bitir" butonunun aktif/pasif durumunu yönetir.
+         *
+         * Uygulamada aktif bir oturum (session) varsa kullanıcı
+         * günü kapatabilsin diye buton aktif edilir.
+         *
+         * Eğer açık oturum yoksa:
+         * - kullanıcı yanlışlıkla "günü bitir" işlemi yapamaz
+         * - sistem pasif moda geçer
+         *
+         * Parametre:
+         * dayOpen → boolean
+         * true  = aktif oturum var
+         * false = oturum yok
+         */
+        function updateEndDayVisibility(dayOpen) {                                              // Oturum durumuna göre "Günü Bitir" butonunu yönetir
+            document.getElementById("endDayBtn").disabled = !dayOpen;                           // oturum yoksa butonu pasif yap
         }
 
-        async function init() {
+        /**
+         * init()
+         * ------------------------------------------------------------
+         * Sayfa ilk açıldığında çalışan ana başlangıç fonksiyonudur.
+         *
+         * Görevleri:
+         * 1. Firebase'den aktif oyun var mı kontrol eder
+         * 2. Aktif session (oturum) bilgisini yükler
+         * 3. "Günü Bitir" butonunu doğru duruma getirir
+         * 4. Eğer oyun varsa realtime listener başlatır
+         * 5. Eğer oyun yoksa boş ekran render eder
+         * 6. History kayıtlarını dinlemeye başlar
+         *
+         * Bu fonksiyon uygulamanın giriş noktasıdır.
+         */
+        async function init() {                                                                 // Uygulamayı başlatır ve mevcut oyunu yükler
             const [gameSnap, sessionSnap] = await Promise.all([
-                get(ref(db, "currentGameId")),
-                get(ref(db, "currentSessionKey"))
+                get(ref(db, "currentGameId")),                                                  // aktif oyun id'si
+                get(ref(db, "currentSessionKey"))                                               // aktif oturum id'si
             ]);
-            const dayOpen = sessionSnap.exists() && !!sessionSnap.val();
-            updateEndDayVisibility(dayOpen);
 
-            if (!gameSnap.exists() || !gameSnap.val()) {
-                gameId = null;
-                render();
-                listenHistory();
-                return;
+            const dayOpen = sessionSnap.exists() && !!sessionSnap.val();                        // oturum açık mı
+            updateEndDayVisibility(dayOpen);                                                    // buton aktif/pasif
+
+            if (!gameSnap.exists() || !gameSnap.val()) {                                        // oyun yoksa 
+                gameId = null;                                                                  // aktif oyun id sıfırla
+                render();                                                                       // boş ekran çiz
+                listenHistory();                                                                // geçmişi yine dinle
+                return;                                                                         // devam etme
             }
-            gameId = gameSnap.val();
-            await loadGameNumber();
-            listenGame();
-            listenHistory();
+
+            gameId = gameSnap.val();                                                            // oyun id yükle
+            await loadGameNumber();                                                             // oyun sıra no yükle
+            listenGame();                                                                       // oyunu dinlemeye başla
+            listenHistory();                                                                    // geçmişi dinlemeye başla
         }
 
-        async function loadGameNumber() {
-            const snap = await get(ref(db, "games/" + gameId + "/gameNumber"));
-            if (snap.exists()) gameNumber = snap.val();
+        /**
+         * loadGameNumber()
+         * ------------------------------------------------------------
+         * Firebase içindeki mevcut oyunun sıra numarasını okur.
+         *
+         * Örneğin:
+         * 1. oyun
+         * 2. oyun
+         * 15. oyun
+         *
+         * Bu bilgi:
+         * - log kayıtlarında
+         * - menü ekranında
+         * - geçmiş listesinde
+         * kullanılır.
+         */
+        async function loadGameNumber() {                                                       // Firebase'den oyun sıra numarasını yükler
+            const snap = await get(ref(db, "games/" + gameId + "/gameNumber"));                 // oyun numarasını oku
+            if (snap.exists()) gameNumber = snap.val();                                         // varsa local değişkene yaz
         }
 
-        function listenGame() {
-            if (unsubscribeGame) unsubscribeGame();
-            unsubscribeGame = onValue(ref(db, "games/" + gameId), snap => {
-                if (!snap.exists()) return;
-                const g = snap.val();
-                Object.assign(state, {
-                    scores: g.scores || [...START],
-                    rows: g.rows ? Object.values(g.rows) : [],
-                    round: g.round || 0,
-                    finished: g.finished || false,
-                    finalRanking: g.finalRanking || null
+        /**
+         * listenGame()
+         * ------------------------------------------------------------
+         * Aktif oyunu gerçek zamanlı (Realtime Database)
+         * olarak dinler.
+         *
+         * Firebase'de oyun datasında herhangi bir değişiklik
+         * olduğunda otomatik tetiklenir.
+         *
+         * Görevleri:
+         * - skorları güncellemek
+         * - round bilgisini almak
+         * - oyun bitti mi kontrol etmek
+         * - hamle geçmişini güncellemek
+         * - ekranı yeniden render etmek
+         *
+         * Böylece tüm cihazlarda anlık senkronizasyon sağlanır.
+         */
+        function listenGame() {                                                                 // aktif oyunu gerçek zamanlı dinler
+            if (unsubscribeGame) unsubscribeGame();                                             // daha önce listener varsa kapat (çift dinleme olmasın)
+            unsubscribeGame = onValue(ref(db, "games/" + gameId), snap => {                     // games/{gameId} yolunu realtime izle
+                if (!snap.exists()) return;                                                     // veri yoksa çık
+                const g = snap.val();                                                           // firebase verisini düz objeye çevir
+                Object.assign(state, {                                                          // gelen verileri local state içine aktar
+                    scores: g.scores || [...START],                                             // skorlar varsa al, yoksa başlangıç skorları
+                    rows: g.rows ? Object.values(g.rows) : [],                                  // geçmiş hamleleri diziye çevir
+                    round: g.round || 0,                                                        // el sayısını al, yoksa 0
+                    finished: g.finished || false,                                              // oyun bitiş durumu
+                    finalRanking: g.finalRanking || null                                        // varsa final sıralama
                 });
-                render();
+                render();                                                                       // tabloyu ve butonları yeniden çiz
             });
         }
 
-        function listenHistory() {
-            if (unsubscribeHistory) unsubscribeHistory();
-            unsubscribeHistory = onValue(ref(db, "history"), snap => {
-                if (!snap.exists()) {
-                    historyList.innerHTML = "";
-                    return;
+        /**
+         * listenHistory()
+         * ------------------------------------------------------------
+         * Geçmiş log kayıtlarını gerçek zamanlı dinler.
+         *
+         * "history" düğümündeki tüm kayıtlar:
+         * - yeni oyun başladı
+         * - oyuncu ceza aldı
+         * - oyun bitti
+         * gibi olayları içerir.
+         *
+         * Yeni kayıt geldiğinde:
+         * - kayıtlar tarihe göre sıralanır
+         * - en yeni üstte gösterilir
+         * - history paneli otomatik güncellenir
+         */
+        function listenHistory() {                                                              // geçmiş log kayıtlarını gerçek zamanlı dinler
+            if (unsubscribeHistory) unsubscribeHistory();                                       // eski history listener varsa kapat
+            unsubscribeHistory = onValue(ref(db, "history"), snap => {                          // history düğümünü realtime izle
+                if (!snap.exists()) {                                                           // geçmiş boşsa
+                    historyList.innerHTML = "";                                                 // listeyi temizle
+                    return;                                                                     // işlemi bitir
                 }
-                const entries = Object.values(snap.val()).sort((a, b) => b.ts - a.ts);
-                historyList.innerHTML = entries.map(e => `<div class="history-entry"><span style="color:#555">${e.time}</span> : ${e.text}</div>`).join("");
+                const entries = Object.values(snap.val())                                       // firebase objesini diziye çevir
+                    .sort((a, b) => b.ts - a.ts);                                               // zaman damgasına göre tersten sırala (yeniler üstte)
+                historyList.innerHTML = entries                                                 // html oluştur
+                    .map(e =>                                                                   // her kayıt için
+                        `<div>${e.text}</div>`                                                  // açıklama
+                    ).join("");                                                                 // tek html string yap
             });
         }
 
-        function render() {
-            if (!gameId) {
-                scoreTable.innerHTML = "";
-                newGameBtn.innerText = "Yeni Oyun";
-                newGameBtn.disabled = false;
-                undoBtn.disabled = true;
-                return;
+        /**
+         * render()
+         * ------------------------------------------------------------
+         * Uygulamanın ana ekranını günceller.
+         *
+         * Bu fonksiyon:
+         * - skor tablosunu çizer
+         * - butonların aktif/pasif durumunu ayarlar
+         * - oyun bitiş işlemlerini kontrol eder
+         * - yeni oyun açılabilir mi karar verir
+         *
+         * State değiştikçe tekrar çağrılır.
+         *
+         * Kısaca:
+         * "UI senkronizasyon merkezi"dir.
+         */
+        function render() {                                                                     // ana ekranı yeniden çizer
+            if (!gameId) {                                                                      // aktif oyun yoksa
+                scoreTable.innerHTML = "";                                                      // skor tablosunu temizle
+                newGameBtn.innerText = "Yeni Oyun";                                             // buton yazısını ayarla
+                newGameBtn.disabled = false;                                                    // yeni oyun açılabilsin
+                undoBtn.disabled = true;                                                        // geri alma kapalı
+                return;                                                                         // devam etme
             }
-            renderScoreTable(state);
-            if (state.finished && !lastFinished) {
-                lastFinished = true;
-                updateScores();
+            renderScoreTable(state);                                                            // tabloyu çiz
+            if (state.finished && !lastFinished) {                                              // oyun yeni bittiyse puanları güncelle
+                lastFinished = true;                                                            // tekrar çalışmayı engelle
+                updateScores();                                                                 // oturum ve lig puanlarını yaz
             }
-            if (!state.finished) lastFinished = false;
-            newGameBtn.disabled = !!(gameId && !state.finished);
-            undoBtn.disabled = !gameId || state.rows.length === 0;
+            if (!state.finished) lastFinished = false;                                          // oyun devam ediyorsa resetle
+            newGameBtn.disabled = !!(gameId && !state.finished);                                // oyun bitmeden yeni oyun açılmasın
+            undoBtn.disabled = !gameId || state.rows.length === 0;                              // hamle yoksa geri alma kapalı
         }
 
-        async function updateScores() {
-            let alreadyUpdated = false;
-            await runTransaction(ref(db, "games/" + gameId + "/scoresUpdated"), current => {
-                if (current === true) {
-                    alreadyUpdated = true;
-                    return current;
+        /**
+         * updateScores()
+         * ------------------------------------------------------------
+         * Oyun bittiğinde:
+         * - günlük oturum puanlarını
+         * - genel lig puanlarını
+         * günceller.
+         *
+         * Puan Sistemi:
+         * 1. oyuncu → +3 puan
+         * 2. oyuncu → +1 puan
+         *
+         * Ayrıca:
+         * - history log oluşturur
+         * - aynı oyun için ikinci kez puan yazılmasını engeller
+         * - transaction kullanarak veri çakışmasını önler
+         *
+         * Bu fonksiyon sadece oyun bitince çalışır.
+         */
+        async function updateScores() {                                                         // oyun bittiğinde oturum ve lig puanlarını işler
+            let alreadyUpdated = false;                                                         // aynı oyun için ikinci kez puan yazılmasın
+            await runTransaction(ref(db, "games/" + gameId + "/scoresUpdated"), current => {    // transaction ile kilit koy
+                if (current === true) {                                                         // zaten işaretlenmişse
+                    alreadyUpdated = true;                                                      // dışarı bilgi ver
+                    return current;                                                             // mevcut true değeri koru
                 }
-                return true;
+                return true;                                                                    // ilk kez çalıştı -> true yaz
             });
-            if (alreadyUpdated) return;
-
-            const ranking = state.finalRanking || [...state.scores].map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map(r => r.i);
-            const [first, second] = ranking;
-            const sessionKeySnap = await get(ref(db, "currentSessionKey"));
-            const activeSession = sessionKeySnap.exists() && sessionKeySnap.val() ? sessionKeySnap.val() : todayKey();
-            const resultText = ranking.map((pi, rank) => `${MEDALS[rank]} ${PLAYERS[pi]}`).join(", ");
-            await log(`${gameNumber ?? "?"}. oyun bitti: ${resultText}`);
-            await runTransaction(ref(db, "sessions/" + activeSession + "/scores"), d => {
-                if (!d) d = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };
-                d[PLAYERS[first]] = (d[PLAYERS[first]] || 0) + 3;
-                d[PLAYERS[second]] = (d[PLAYERS[second]] || 0) + 1;
-                return d;
+            if (alreadyUpdated) return;                                                         // tekrar puanlama yapma
+            const ranking = state.finalRanking || [...state.scores]                             // bitiş sıralaması hazır değilse hesapla
+                .map((s, i) => ({ i, s }))                                                      // index + score objesine çevir
+                .sort((a, b) => b.s - a.s)                                                      // yüksek skor öne
+                .map(r => r.i);                                                                 // sadece index listesi al
+            const [first, second] = ranking;                                                    // 1. ve 2. oyuncular
+            const sessionKeySnap = await get(ref(db, "currentSessionKey"));                     // açık oturum oku
+            const activeSession = sessionKeySnap.exists() && sessionKeySnap.val()               // varsa al
+                ? sessionKeySnap.val()
+                : null;                                                                         // fallback gün anahtarı
+            const resultText = ranking.map(pi =>
+                `${PLAYERS[pi].slice(0, 3).toUpperCase()}(${state.scores[pi]})`).join(", ");
+            await log(`${gameNumber ?? "?"}. oyun bitti: ${resultText}`);                       // geçmişe yaz
+            await runTransaction(ref(db, "sessions/" + activeSession + "/scores"), d => {       // günlük puanlar
+                if (!d) d = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };                       // ilk oturum ise sıfırla
+                d[PLAYERS[first]] += 3;                                                         // 1. +3
+                d[PLAYERS[second]] += 1;                                                        // 2. +1
+                return d;                                                                       // geri yaz
             });
-            await runTransaction(ref(db, "league"), league => {
-                if (!league) league = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };
-                PLAYERS.forEach(p => league[p] = league[p] || 0);
-                league[PLAYERS[first]] += 3;
-                league[PLAYERS[second]] += 1;
-                return league;
+            await runTransaction(ref(db, "league"), league => {                                 // genel lig puanları
+                if (!league) league = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };             // yoksa oluştur
+                league[PLAYERS[first]] += 3;                                                    // kalıcı puan
+                league[PLAYERS[second]] += 1;                                                   // kalıcı puan
+                return league;                                                                  // kaydet
             });
         }
 
-        window.selectPlayer = function (el, index) {
-            if (!gameId || state.finished) return;
-            state.activePlayer = index;
-            document.querySelectorAll('[name="playerName"]').forEach(e => e.style.color = "");
-            el.style.color = "yellow";
-            actionsPanel.style.display = "flex";
+        /**
+         * selectPlayer(el, index)
+         * ------------------------------------------------------------
+         * Kullanıcı bir oyuncunun adına tıkladığında çalışır.
+         *
+         * Görevleri:
+         * - aktif oyuncuyu state içine kaydetmek
+         * - seçili oyuncuyu görsel olarak işaretlemek
+         * - işlem panelini açmak
+         *
+         * Eğer:
+         * - oyun yoksa
+         * - oyun bittiyse
+         * seçim yapılamaz.
+         */
+        window.selectPlayer = function (el, index) {                                            // Oyuncu seçimi yapar
+            if (!gameId || state.finished) return;                                              // oyun yoksa veya bittiyse işlem yapma
+            state.activePlayer = index;                                                         // seçilen oyuncuyu kaydet
+            document.querySelectorAll('[name="playerName"]')                                    // tüm oyuncu isimlerini bul
+                .forEach(e => e.style.color = "");                                              // eski renkleri temizle
+            el.style.color = "yellow";                                                          // seçilen oyuncuyu sarı yap
+            actionsPanel.style.display = "flex";                                                // işlem panelini aç
         };
 
-        window.toggleDouble = function () {
-            state.doubleMode = !state.doubleMode;
-            const x = state.doubleMode;
-            doubleButton.innerText = x ? "Renk ❌ 2" : "Renk ✖️ 1";
-            penaltyButton.innerText = x ? "Ceza ➖ 4" : "Ceza ➖ 2";
-            normalButton.innerText = x ? "Bitti ✔️ 4" : "Bitti ✔️ 2";
-            okeyButton.innerText = x ? "Okey ⭕️ 8" : "Okey ⭕️ 4";
+        /**
+         * toggleDouble()
+         * ------------------------------------------------------------
+         * "Renge" modunu açıp kapatır.
+         *
+         * Normal mod:
+         * Ceza  = -2
+         * Bitti =  2
+         * Okey  =  4
+         *
+         * Renge modu:
+         * Ceza  = -4
+         * Bitti =  4
+         * Okey  =  8
+         *
+         * Ayrıca buton yazıları dinamik olarak güncellenir.
+         */
+        window.toggleDouble = function () {                                                     // Renge modunu açıp kapatır
+            state.doubleMode = !state.doubleMode;                                               // modu tersine çevir
+            const x = state.doubleMode;                                                         // kısa kullanım değişkeni
+            doubleButton.innerText = x ? "Renk ❌ 2" : "Renk ✖️ 1";                            // toggle yazısı
+            penaltyButton.innerText = x ? "Ceza ➖ 4" : "Ceza ➖ 2";                           // ceza puanı
+            normalButton.innerText = x ? "Bitti ✔️ 4" : "Bitti ✔️ 2";                          // normal bitiş puanı
+            okeyButton.innerText = x ? "Okey ⭕️ 8" : "Okey ⭕️ 4";                              // okey puanı
         };
 
-        window.applyScore = async function (rawValue) {
-            const double = state.doubleMode && rawValue !== 1;
-            const value = double ? rawValue * 2 : rawValue;
-            const player = PLAYERS[state.activePlayer];
-            const round = state.round + (rawValue !== 1 ? 1 : 0);
-            const renk = double ? " renge" : "";
-
-            let logText;
-
-            if (rawValue === 1) { logText = `${round}. elde ${player} gösterge gösterdi`; }
-            else if (rawValue < 0) { logText = `${round}. elde ${player}${renk} ceza aldı`; }
-            else if (rawValue === 2) { logText = `${round}. elde ${player}${renk} bitti`; }
-            else if (rawValue === 4) { logText = `${round}. elde ${player}${renk} bastı`; }
-            else { logText = `${round}. elde ${player} (${rawValue})`; }
-
-            await runTransaction(ref(db, "games/" + gameId), g => {
-                if (!g || g.finished) return g;
-
-                const p = state.activePlayer;
-                if (p === null) return g;
-
-                if (value < 0) {
-                    g.scores[p] += value;
-                } else {
-                    for (let i = 0; i < 4; i++)
+        /**
+         * applyScore(rawValue)
+         * ------------------------------------------------------------
+         * Seçilen oyuncuya puan uygular.
+         *
+         * Oyun içindeki en kritik fonksiyonlardan biridir.
+         *
+         * Yapılan işlemler:
+         * 1. Renge modu kontrol edilir
+         * 2. Gerçek puan hesaplanır
+         * 3. Firebase transaction ile skor güncellenir
+         * 4. Round artırılır
+         * 5. Hamle geçmişine kayıt eklenir
+         * 6. Oyun bitiş kontrolü yapılır
+         * 7. History log yazılır
+         *
+         * rawValue değerleri:
+         * 1  → gösterge
+         * -2 → ceza
+         * 2  → normal bitiş
+         * 4  → okey
+         *
+         * Oyun bitiş kuralı:
+         * Skoru 0 veya altına düşen oyuncu sayısı >= 2 ise oyun biter.
+         */
+        window.applyScore = async function (rawValue) {                                         // Oyuncuya skor uygular
+            const double = state.doubleMode && rawValue !== 1;                                  // gösterge ikiyle çarpılmaz
+            const value = double ? rawValue * 2 : rawValue;                                     // gerçek puan
+            const player = PLAYERS[state.activePlayer];                                         // isim
+            const round = state.round + (rawValue !== 1 ? 1 : 0);                               // yeni el numarası
+            const renk = double ? " renge" : "";                                                // log eki
+            let logText;                                                                        // geçmiş açıklaması
+            if (rawValue === 1) logText = `${round}. elde ${player} gösterge gösterdi`;         // gösterge
+            else if (rawValue < 0) logText = `${round}. elde ${player}${renk} ceza aldı`;       // ceza
+            else if (rawValue === 2) logText = `${round}. elde ${player}${renk} bitti`;         // normal
+            else if (rawValue === 4) logText = `${round}. elde ${player}${renk} bastı`;         // okey
+            await runTransaction(ref(db, "games/" + gameId), g => {                             // oyunu güvenli güncelle
+                if (!g || g.finished) return g;                                                 // yoksa çık
+                const p = state.activePlayer;                                                   // index
+                if (p === null) return g;                                                       // seçim yoksa çık
+                if (value < 0) {                                                                // ceza ise
+                    g.scores[p] += value;                                                       // sadece kendisi düşer
+                } else {                                                                        // değilse
+                    for (let i = 0; i < 4; i++) {                                               // diğer herkes düşer
                         if (i !== p) g.scores[i] -= value;
+                    }
                 }
-
-                if (rawValue !== 1) g.round++;
-                g.rows = g.rows || {};
-                const rowIndex = Object.keys(g.rows).length;
-                g.rows[rowIndex] = { round: g.round, scores: [...g.scores], player: p, value };
-                const losers = g.scores.filter(s => s <= 0).length;
-
-                if (losers >= 2 && !g.finished) {
-                    g.finished = true;
+                if (rawValue !== 1) g.round++;                                                  // gösterge elde artırmaz
+                g.rows = g.rows || {};                                                          // rows yoksa oluştur
+                const rowIndex = Object.keys(g.rows).length;                                    // yeni satır indexi
+                g.rows[rowIndex] = {                                                            // hamleyi kaydet
+                    round: g.round,
+                    scores: [...g.scores],
+                    player: p,
+                    value
+                };
+                const losers = g.scores.filter(s => s <= 0).length;                             // kaybeden oyuncu sayısı
+                if (losers >= 2 && !g.finished) {                                               // iki kişi kaybettiyse
+                    g.finished = true;                                                          // oyun bitti
                     g.finalRanking = [...g.scores]
-                        .map((s, i) => ({ i, s }))
+                        .map((s, i) => ({ i, s }))                                              // sıralama hazırla
                         .sort((a, b) => b.s - a.s)
                         .map(r => r.i);
                 }
-                return g;
+                return g;                                                                       // transaction sonucu
             });
-            await log(logText);
-            closeActionsPanel();
-        };
-
-        async function log(text) {
-            const now = new Date();
-            const time = now.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
-            await push(ref(db, "history"), { text, time, ts: now.getTime() });
+            await log(logText);                                                                 // geçmişe yaz
+            closeActionsPanel();                                                                // panel kapat
         }
 
-        window.closeActionsPanel = function () {
-            document.getElementsByName("playerName").forEach(e => e.style.color = "");
-            state.activePlayer = null;
-            state.doubleMode = false;
-            doubleButton.innerText = "Renk ✖️ 1";
+        /**
+         * log(text)
+         * ------------------------------------------------------------
+         * Sistemde gerçekleşen olayları history listesine yazar.
+         *
+         * Örnek kayıtlar:
+         * - "1. oyun başladı"
+         * - "3. elde Serkan bitti"
+         * - "2. oturum kapandı"
+         *
+         * Her kayıt:
+         * - açıklama metni
+         * - okunabilir tarih
+         * - unix timestamp
+         * içerir.
+         *
+         * Timestamp sayesinde kayıtlar doğru sıralanabilir.
+         */
+        async function log(text) {                                                              // history altına olay kaydı yazar
+            const now = new Date();                                                             // şu anki zaman
+            const time = now.toLocaleString("tr-TR", {                                          // kullanıcıya görünen tarih
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit"
+            }).replace(",", "");                                                                // virgülü temizle
+            await push(ref(db, "history"), {                                                    // history listesine yeni kayıt ekle
+                text,                                                                           // açıklama metni
+                time,                                                                           // okunabilir tarih
+                ts: now.getTime()                                                               // sıralama için unix zaman
+            });
+        }
+
+        /**
+         * closeActionsPanel()
+         * ------------------------------------------------------------
+         * Oyuncu işlem panelini kapatır ve geçici state'i sıfırlar.
+         *
+         * Yapılan işlemler:
+         * - oyuncu seçimini kaldırır
+         * - renge modunu kapatır
+         * - buton yazılarını varsayılana döndürür
+         * - paneli gizler
+         *
+         * Yeni işlem başlamadan önce temiz state sağlar.
+         */
+        window.closeActionsPanel = function () {                                                // işlem panelini kapat ve state sıfırla
+            document.getElementsByName("playerName").forEach(e => e.style.color = "");          // renkleri temizle
+            state.activePlayer = null;                                                          // oyuncu seçimini kaldır
+            state.doubleMode = false;                                                           // renge mod kapalı
+            doubleButton.innerText = "Renk ✖️ 1";                                               // varsayılan yazılar
             penaltyButton.innerText = "Ceza ➖ 2";
             normalButton.innerText = "Bitti ✔️ 2";
             okeyButton.innerText = "Okey ⭕️ 4";
-            actionsPanel.style.display = "none";
+            actionsPanel.style.display = "none";                                                // panel gizle
         };
 
-        window.openMenu = async () => {
-            renderGameStatus(gameNumber, state);
-            await openMenuPanel();
+        /**
+         * openMenu()
+         * ------------------------------------------------------------
+         * Menü panelini açar.
+         *
+         * Menü açılmadan önce:
+         * - mevcut oyun bilgileri hazırlanır
+         * - skor durumu gösterilir
+         * - oyun özeti render edilir
+         *
+         * Ardından shared.js içindeki ortak panel açılır.
+         */
+        window.openMenu = async () => {                                                         // Menü panelini açar
+            renderGameStatus(gameNumber, state);                                                // güncel oyun durumunu menüye yaz
+            await openMenuPanel();                                                              // menü panelini göster
         };
 
-        window.createNewGame = async function () {
-            if (gameId && !state.finished) return;
-            let sessionKey;
-            const currentSessionSnap = await get(ref(db, "currentSessionKey"));
-            if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {
-                const allSessionsSnap = await get(ref(db, "sessions"));
-                const sessionNum = allSessionsSnap.exists() ? Object.keys(allSessionsSnap.val()).length + 1 : 1;
-                const d2 = new Date();
-                const startDate2 = `${String(d2.getDate()).padStart(2, "0")}.${String(d2.getMonth() + 1).padStart(2, "0")}.${d2.getFullYear()}`;
-                const sessionRef = push(ref(db, "sessions"));
-                sessionKey = sessionRef.key;
-                await set(sessionRef, {
-                    sessionNumber: sessionNum,
-                    startDate: startDate2,
-                    gameCount: 0,
-                    scores: { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 }
+        /**
+         * createNewGame()
+         * ------------------------------------------------------------
+         * Yeni bir oyun oluşturur.
+         *
+         * Süreç:
+         * 1. Açık session var mı kontrol edilir
+         * 2. Yoksa yeni session oluşturulur
+         * 3. Session içindeki oyun sayısı artırılır
+         * 4. Firebase'de yeni game kaydı açılır
+         * 5. currentGameId güncellenir
+         * 6. Local state sıfırlanır
+         * 7. Realtime listener başlatılır
+         * 8. History log yazılır
+         *
+         * Böylece oyun sistemi tamamen sıfırdan başlatılmış olur.
+         */
+        window.createNewGame = async function () {                                              // Yeni oyun oluşturur
+            if (gameId && !state.finished) return;                                              // aktif oyun varsa engelle
+            let sessionKey;                                                                     // kullanılacak oturum key
+            const currentSessionSnap = await get(ref(db, "currentSessionKey"));                 // aktif oturum kontrolü
+            if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {                    // oturum yoksa
+                const allSessionsSnap = await get(ref(db, "sessions"));                         // tüm oturumları oku
+                const sessionNum = allSessionsSnap.exists()                                     // oturum numarası oluştur
+                    ? Object.keys(allSessionsSnap.val()).length + 1                             // bir artır
+                    : 1;                                                                        // hiç oturum yoksa 1'den başlat
+                const d2 = new Date();                                                          // tarih objesi oluştur
+                const startDate2 =                                                              // başlangıç tarihi oluştur
+                    `${String(d2.getDate()).padStart(2, "0")}
+                .${String(d2.getMonth() + 1).padStart(2, "0")}
+                .${d2.getFullYear()}`;
+                const sessionRef = push(ref(db, "sessions"));                                   // yeni session kaydı
+                sessionKey = sessionRef.key;                                                    // session key sakla
+                await set(sessionRef, {                                                         // session verisini firebase'e yaz
+                    sessionNumber: sessionNum,                                                  // oturum sıra numarası
+                    startDate: startDate2,                                                      // başlangıç tarihi
+                    gameCount: 0,                                                               // başlangıçta oyun sayısı sıfır
+                    scores: { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 }                        // oyuncu puanlarını sıfırla
                 });
-                await set(ref(db, "currentSessionKey"), sessionKey);
-                updateEndDayVisibility(true);
-                await log(`${sessionNum}. oturum açıldı`);
+                await set(ref(db, "currentSessionKey"), sessionKey);                            // aktif session ata
+                updateEndDayVisibility(true);                                                   // günü bitir butonunu aktif et
+                await log(`${sessionNum}. oturum açıldı`);                                      // history kaydı
             } else {
-                sessionKey = currentSessionSnap.val();
+                sessionKey = currentSessionSnap.val();                                          // mevcut session devam
             }
-
-            const countSnap = await get(ref(db, "sessions/" + sessionKey + "/gameCount"));
-            const count = countSnap.exists() ? countSnap.val() + 1 : 1;
-            await set(ref(db, "sessions/" + sessionKey + "/gameCount"), count);
-            gameNumber = count;
-            const newRef = push(ref(db, "games"));
-            await set(newRef, { scores: [...START], round: 0, finished: false, rows: {}, gameNumber: count, sessionKey });
-            await set(ref(db, "currentGameId"), newRef.key);
-            gameId = newRef.key;
-            Object.assign(state, { scores: [...START], rows: [], round: 0, finished: false, finalRanking: null });
-            lastFinished = false;
-            await log(`${count}. oyun başladı`);
-            listenGame();
-            render();
-            menuPanel.style.display = "none";
+            const countSnap = await get(ref(db, "sessions/" + sessionKey + "/gameCount"));      // mevcut oyun sayısını al
+            const count = countSnap.exists()
+                ? countSnap.val() + 1                                                           // bir artır
+                : 1;                                                                            // ilk oyun ise 1 yap
+            await set(ref(db, "sessions/" + sessionKey + "/gameCount"), count);                 // yeni oyun sayısını kaydet
+            gameNumber = count;                                                                 // local oyun numarasını güncelle
+            const newRef = push(ref(db, "games"));                                              // yeni oyun kaydı oluştur
+            await set(newRef, {                                                                 // yeni oyunu firebase'e yaz
+                scores: [...START],
+                round: 0,
+                finished: false,
+                rows: {},
+                gameNumber: count,
+                sessionKey
+            });
+            await set(ref(db, "currentGameId"), newRef.key);                                    // aktif oyun belirle
+            gameId = newRef.key;                                                                // local game id güncelle
+            Object.assign(state, {                                                              // local state sıfırla
+                scores: [...START],
+                rows: [],
+                round: 0,
+                finished: false,
+                finalRanking: null
+            });
+            lastFinished = false;                                                               // bitiş kontrolünü sıfırla
+            await log(`${count}. oyun başladı`);                                                // başlangıç logu
+            listenGame();                                                                       // realtime dinlemeyi başlat
+            render();                                                                           // ekranı güncelle
+            menuPanel.style.display = "none";                                                   // menüyü kapat
         };
 
-        window.endDay = async function () {
-            if (!confirm("Oturumu bitirmek istediğinden emin misin?")) return;
-            const currentSessionSnap = await get(ref(db, "currentSessionKey"));
+        /**
+         * endDay()
+         * ------------------------------------------------------------
+         * Aktif oturumu kapatır.
+         *
+         * Yapılan işlemler:
+         * - session skorlarını toplar
+         * - gün sonu özetini oluşturur
+         * - history log kaydı ekler
+         * - currentSessionKey temizlenir
+         * - currentGameId temizlenir
+         * - realtime listener kapatılır
+         * - local state sıfırlanır
+         *
+         * Böylece sistem yeni güne hazır hale gelir.
+         */
+        window.endDay = async function () {                                                     // Aktif oturumu kapatır
+            if (!confirm("Oturumu bitirmek istediğinden emin misin?")) return;                  // kullanıcı onayı al
+            const currentSessionSnap = await get(ref(db, "currentSessionKey"));                 // aktif session oku
             if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {
-                alert("Açık bir oturum yok!");
+                alert("Açık bir oturum yok!");                                                  // session yoksa uyar
                 return;
             }
-            const sessionKey = currentSessionSnap.val();
-            const scoresSnap = await get(ref(db, "sessions/" + sessionKey + "/scores"));
-            const scores = scoresSnap.exists() ? scoresSnap.val() : {};
+            const sessionKey = currentSessionSnap.val();                                        // aktif session key
+            const scoresSnap = await get(ref(db, "sessions/" + sessionKey + "/scores"));        // session skorları
+            const scores = scoresSnap.exists() ? scoresSnap.val() : {};                         // skor objesi
             const sorted = Object.entries(scores)
-                .filter(([name]) => PLAYERS.includes(name))
-                .sort((a, b) => b[1] - a[1]);
-            const dateStr = scoresSnap.exists()
-                ? (await get(ref(db, "sessions/" + sessionKey + "/startDate"))).val() || sessionKey
-                : sessionKey;
+                .filter(([name]) => PLAYERS.includes(name))                                     // sadece oyuncuları filtrele
+                .sort((a, b) => b[1] - a[1]);                                                   // puana göre sırala
+
             const sessionNumSnap = await get(ref(db, "sessions/" + sessionKey + "/sessionNumber"));
-            const sessionNum = sessionNumSnap.exists() ? sessionNumSnap.val() : "?";
+            const sessionNum = sessionNumSnap.exists()
+                ? sessionNumSnap.val()
+                : "?";
             const summary = sorted.length
-                ? sorted.map(([n, p]) => `${n}(${p})`).join(", ")
+                ? sorted.map(([n, p]) => `${n.slice(0, 3).toUpperCase()}(${p})`).join(", ")     // skor özeti oluştur
                 : "oyun yok";
-            await log(`${sessionNum}. oturum bitti (${dateStr}): ${summary}`);
-            await set(ref(db, "currentSessionKey"), null);
-            await set(ref(db, "currentGameId"), null);
-            gameId = null;
-            if (unsubscribeGame) { unsubscribeGame(); unsubscribeGame = null; }
-            Object.assign(state, { scores: [...START], rows: [], round: 0, finished: false, finalRanking: null });
-            lastFinished = false;
-            updateEndDayVisibility(false);
-            render();
-            menuPanel.style.display = "none";
+            await log(`${sessionNum}. oturum bitti: ${summary}`);                               // kapanış logu
+            await set(ref(db, "currentSessionKey"), null);                                      // aktif session temizle
+            await set(ref(db, "currentGameId"), null);                                          // aktif oyun temizle
+            gameId = null;                                                                      // local oyun id sıfırla
+            if (unsubscribeGame) {
+                unsubscribeGame();                                                              // realtime listener kapat
+                unsubscribeGame = null;
+            }
+            Object.assign(state, {
+                scores: [...START],
+                rows: [],
+                round: 0,
+                finished: false,
+                finalRanking: null
+            });
+            lastFinished = false;                                                               // bitiş flag sıfırla
+            updateEndDayVisibility(false);                                                      // günü bitir butonunu pasif yap
+            render();                                                                           // ekranı temizle
+            menuPanel.style.display = "none";                                                   // menüyü kapat
         };
 
-        window.undo = async function () {
-            if (state.rows.length === 0) return;
-            const wasFinished = state.finished;
-            const prevRanking = state.finalRanking;
+        /**
+         * undo()
+         * ------------------------------------------------------------
+         * Son yapılan hamleyi geri alır.
+         *
+         * İşleyiş:
+         * 1. Son hamle rows listesinden silinir
+         * 2. Tüm skorlar baştan hesaplanır
+         * 3. Round yeniden oluşturulur
+         * 4. Oyun bitiş durumu kaldırılır
+         * 5. Eğer oyun bitmişse verilen lig puanları geri alınır
+         * 6. History kaydı oluşturulur
+         *
+         * Bu yaklaşım:
+         * "tek hamleyi tersine çevirmek" yerine
+         * tüm state'i yeniden hesapladığı için
+         * daha güvenli ve tutarlıdır.
+         */
+        window.undo = async function () {                                                       // Son hamleyi geri alır
+            if (state.rows.length === 0) return;                                                // hamle yoksa çık
+            const wasFinished = state.finished;                                                 // oyun bitmiş miydi
+            const prevRanking = state.finalRanking;                                             // eski sıralamayı sakla
             await runTransaction(ref(db, "games/" + gameId), g => {
-                if (!g || !g.rows) return g;
-                const keys = Object.keys(g.rows).map(Number).sort((a, b) => a - b);
-                if (keys.length === 0) return g;
-                const lastKey = keys[keys.length - 1];
-                delete g.rows[lastKey];
-                g.scores = [...START];
+                if (!g || !g.rows) return g;                                                    // veri yoksa çık
+                const keys = Object.keys(g.rows)
+                    .map(Number)
+                    .sort((a, b) => a - b);                                                     // satırları sırala
+                if (keys.length === 0) return g;                                                // boşsa çık
+                const lastKey = keys[keys.length - 1];                                          // son hamle keyi
+                delete g.rows[lastKey];                                                         // son hamleyi sil
+                g.scores = [...START];                                                          // skorları baştan hesaplamak için sıfırla
                 Object.values(g.rows).forEach(r => {
                     if (r.value < 0) {
-                        g.scores[r.player] += r.value;
+                        g.scores[r.player] += r.value;                                          // ceza uygula
                     } else {
                         for (let i = 0; i < 4; i++)
-                            if (i !== r.player) g.scores[i] -= r.value;
+                            if (i !== r.player) g.scores[i] -= r.value;                         // diğer oyunculardan düş
                     }
                 });
-                const remaining = Object.values(g.rows);
+                const remaining = Object.values(g.rows);                                        // kalan hamleler
                 g.round = remaining.length > 0
-                    ? remaining[remaining.length - 1].round
+                    ? remaining[remaining.length - 1].round                                     // son round numarası
                     : 0;
-
-                g.finished = false;
-                g.finalRanking = null;
-                g.scoresUpdated = false;
+                g.finished = false;                                                             // oyun bitişini kaldır
+                g.finalRanking = null;                                                          // sıralamayı temizle
+                g.scoresUpdated = false;                                                        // puan güncellendi flag sıfırla
                 return g;
             });
-            if (wasFinished && prevRanking) {
+            if (wasFinished && prevRanking) {                                                   // oyun bitmişse puanları geri al
                 const sessionKeySnap = await get(ref(db, "currentSessionKey"));
-                const activeSession = sessionKeySnap.exists() && sessionKeySnap.val() ? sessionKeySnap.val() : todayKey();
+                const activeSession = sessionKeySnap.exists() && sessionKeySnap.val()
+                    ? sessionKeySnap.val()
+                    : null;
                 await runTransaction(ref(db, "sessions/" + activeSession + "/scores"), d => {
                     if (!d) return d;
-                    d[PLAYERS[prevRanking[0]]] -= 3;
-                    d[PLAYERS[prevRanking[1]]] -= 1;
+                    d[PLAYERS[prevRanking[0]]] -= 3;                                            // 1.'nin puanını geri al
+                    d[PLAYERS[prevRanking[1]]] -= 1;                                            // 2.'nin puanını geri al
                     return d;
                 });
                 await runTransaction(ref(db, "league"), league => {
                     if (!league) return league;
-                    league[PLAYERS[prevRanking[0]]] -= 3;
+                    league[PLAYERS[prevRanking[0]]] -= 3;                                       // lig puanı geri al
                     league[PLAYERS[prevRanking[1]]] -= 1;
                     return league;
                 });
             }
-            await log(`${gameNumber ?? "?"}. oyun — son hamle geri alındı`);
-            menuPanel.style.display = "none";
+            await log(`${gameNumber ?? "?"}. oyun — son hamle geri alındı`);                    // geri alma logu
+            menuPanel.style.display = "none";                                                   // menüyü kapat
         };
     </script>
 </body>
+
 </html>

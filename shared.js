@@ -14,10 +14,6 @@ export const db = getDatabase(initializeApp({
 export const PLAYERS = ["Serkan", "Deniz", "Fırat", "Berkay"];
 export const START = [20, 20, 20, 20];
 
-export function todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export function renderScoreTable(state) {
     const scoreTable = document.getElementById("scoreTable");
@@ -64,9 +60,9 @@ export async function openMenuPanel() {
     const sessionDate = sessionDateSnap.exists() ? sessionDateSnap.val() : "—";
     const leagueDate = leagueDateSnap.exists() ? leagueDateSnap.val() : "—";
 
-    sessionHeader.innerHTML = `${sessionNum}.Gün`;
+    sessionHeader.innerHTML = `${sessionNum}. Gün`;
     sessionDateCell.innerHTML = `${sessionDate}`;
-    leagueHeader.innerHTML = `${leagueNum}.Lig`;
+    leagueHeader.innerHTML = `${leagueNum}. Lig`;
     leagueDateCell.innerHTML = `${leagueDate}`;
 
     await renderStatsEngine(db, {
@@ -91,9 +87,9 @@ export async function renderStatsEngine(db, targets = {}) {
             .sort((a, b) => b[1] - a[1])
             .map(([name, score]) => `<div style="display : flex; justify-content : space-between;"><span>${name}</span><span>${score}</span></div>`).join("");
     };
-    const sessionKey = targets.sessionKey || todayKey();
+    const sessionKey = targets.sessionKey;
     const [sessionSnap, leagueSnap] = await Promise.all([
-        get(ref(db, "sessions/" + sessionKey + "/scores")),
+        sessionKey ? get(ref(db, "sessions/" + sessionKey + "/scores")) : Promise.resolve({ exists: () => false }),
         get(ref(db, "league"))
     ]);
     if (targets.today) targets.today.innerHTML = makeToday(sessionSnap.exists() ? sessionSnap.val() : null);
@@ -104,57 +100,11 @@ export function renderGameStatus(gameNumber, state) {
     const bar = document.getElementById("gameStatusBar");
     if (!bar) return;
     if (!gameNumber && state.round === 0) {
-        bar.textContent = "";
+        bar.textContent = "Oyun yok";
         return;
     }
-    const gn = gameNumber ? `${gameNumber}.Oyun` : "oyun";
+    const gn = gameNumber ? `${gameNumber}. Oyun` : "Oyun";
     bar.textContent = state.finished
         ? `${gn} bitti`
-        : `${gn} ${state.round}.El`;
-}
-
-let currentGameId = null;
-let gameUnsub = null;
-
-export function bindRealtimeGame(db, onStateChange) {
-    onValue(ref(db, "currentGameId"), snap => {
-        const newGameId = snap.exists() ? snap.val() : null;
-        if (newGameId === currentGameId) return;
-        currentGameId = newGameId;
-        if (!currentGameId) {
-            if (gameUnsub) gameUnsub();
-            gameUnsub = null;
-            onStateChange(null);
-            return;
-        }
-        attachGame(db, currentGameId, onStateChange);
-    });
-}
-
-export function bindRealtimeHistory(db, onUpdate) {
-    onValue(ref(db, "history"), snap => {
-        if (!snap.exists()) {
-            onUpdate([]);
-            return;
-        }
-        const entries = Object.values(snap.val()).sort((a, b) => b.ts - a.ts);
-        onUpdate(entries);
-    });
-}
-
-function attachGame(db, gameId, onStateChange) {
-    if (gameUnsub) gameUnsub();
-    const gameRef = ref(db, "games/" + gameId);
-    gameUnsub = onValue(gameRef, snap => {
-        if (!snap.exists()) return;
-        const g = snap.val();
-        onStateChange({
-            scores: g.scores || [],
-            rows: g.rows ? Object.values(g.rows) : [],
-            round: g.round || 0,
-            finished: g.finished || false,
-            finalRanking: g.finalRanking || null,
-            gameNumber: g.gameNumber || null
-        });
-    });
+        : `${gn} - ${state.round}. El`;
 }
