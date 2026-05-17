@@ -13,7 +13,7 @@
         <table>
             <thead>
                 <tr>
-                    <th onclick="openMenuPanel()">#</th>
+                    <th id="menuBtn">#</th>
                     <th>Serkan</th>
                     <th>Deniz</th>
                     <th>Fırat</th>
@@ -24,7 +24,7 @@
         </table>
     </div>
 
-    <div id="menuPanel" class="panel" onclick="if(event.target===this)this.style.display='none'">
+    <div id="menuPanel" class="panel">
         <table>
             <thead>
                 <tr>
@@ -69,6 +69,11 @@
     <script type="module">
         import { db, bindRealtimeGame, bindRealtimeHistory, renderScoreTable, renderGameStatus, renderStatsEngine, openMenuPanel } from "./shared.js";
 
+        document.getElementById("menuBtn").addEventListener("click", openMenuPanel);
+        document.getElementById("menuPanel").addEventListener("click", function(e) {
+            if (e.target === this) this.style.display = "none";
+        });
+
         bindRealtimeGame(db, (g) => {
             const table = document.getElementById("scoreTable");
             const bar = document.getElementById("gameStatusBar");
@@ -89,8 +94,6 @@
                     `<div class="history-entry"><span style="color:#555">${e.time}</span> : ${e.text}</div>`
                 ).join("");
         });
-
-        window.openMenuPanel = openMenuPanel;
     </script>
 </body>
 

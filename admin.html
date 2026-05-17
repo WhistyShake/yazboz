@@ -26,18 +26,18 @@
         <table>
             <thead>
                 <tr>
-                    <th onclick="openMenu()">#</th>
-                    <th name="playerName" onclick="selectPlayer(this,0)">Serkan</th>
-                    <th name="playerName" onclick="selectPlayer(this,1)">Deniz</th>
-                    <th name="playerName" onclick="selectPlayer(this,2)">Fırat</th>
-                    <th name="playerName" onclick="selectPlayer(this,3)">Berkay</th>
+                    <th id="menuBtn">#</th>
+                    <th name="playerName" id="playerBtn0">Serkan</th>
+                    <th name="playerName" id="playerBtn1">Deniz</th>
+                    <th name="playerName" id="playerBtn2">Fırat</th>
+                    <th name="playerName" id="playerBtn3">Berkay</th>
                 </tr>
             </thead>
             <tbody id="scoreTable"></tbody>
         </table>
     </div>
 
-    <div id="menuPanel" class="panel" onclick="if(event.target===this)this.style.display='none'">
+    <div id="menuPanel" class="panel">
         <table>
             <thead>
                 <tr>
@@ -77,17 +77,17 @@
                 </tr>
             </tbody>
         </table>
-        <button id="newGameBtn" onclick="createNewGame()">Yeni Oyun</button>
-        <button id="undoBtn" onclick="undo()">↩ Geri Al</button>
-        <button id="endDayBtn" onclick="endDay()">Oturumu Kapat</button>
+        <button id="newGameBtn">Yeni Oyun</button>
+        <button id="undoBtn">↩ Geri Al</button>
+        <button id="endDayBtn">Oturumu Kapat</button>
     </div>
 
-    <div id="actionsPanel" onclick="if(event.target===this)closeActionsPanel()">
-        <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕ 1</button>
-        <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖ 2</button>
-        <button id="doubleButton" onclick="toggleDouble()">Renk ✖️ 1</button>
-        <button id="normalButton" onclick="applyScore(2)">Bitti ✔️ 2</button>
-        <button id="okeyButton" onclick="applyScore(4)">Okey ⭕️ 4</button>
+    <div id="actionsPanel">
+        <button id="gostergeButton">Gösterge ➕ 1</button>
+        <button id="penaltyButton">Ceza ➖ 2</button>
+        <button id="doubleButton">Renk ✖️ 1</button>
+        <button id="normalButton">Bitti ✔️ 2</button>
+        <button id="okeyButton">Okey ⭕️ 4</button>
     </div>
 
     <script type="module">
@@ -213,24 +213,24 @@
             });
         }
 
-        window.selectPlayer = function (el, index) {
+        function selectPlayer(el, index) {
             if (!gameId || state.finished) return;
             state.activePlayer = index;
             document.querySelectorAll('[name="playerName"]').forEach(e => e.style.color = "");
             el.style.color = "yellow";
             actionsPanel.style.display = "flex";
-        };
+        }
 
-        window.toggleDouble = function () {
+        function toggleDouble() {
             state.doubleMode = !state.doubleMode;
             const x = state.doubleMode;
             doubleButton.innerText = x ? "Renk ❌ 2" : "Renk ✖️ 1";
             penaltyButton.innerText = x ? "Ceza ➖ 4" : "Ceza ➖ 2";
             normalButton.innerText = x ? "Bitti ✔️ 4" : "Bitti ✔️ 2";
             okeyButton.innerText = x ? "Okey ⭕️ 8" : "Okey ⭕️ 4";
-        };
+        }
 
-        window.applyScore = async function (rawValue) {
+        async function applyScore(rawValue) {
             const double = state.doubleMode && rawValue !== 1;
             const value = double ? rawValue * 2 : rawValue;
             const player = PLAYERS[state.activePlayer];
@@ -275,7 +275,7 @@
             });
             await log(logText);
             closeActionsPanel();
-        };
+        }
 
         async function log(text) {
             const now = new Date();
@@ -283,7 +283,7 @@
             await push(ref(db, "history"), { text, time, ts: now.getTime() });
         }
 
-        window.closeActionsPanel = function () {
+        function closeActionsPanel() {
             document.getElementsByName("playerName").forEach(e => e.style.color = "");
             state.activePlayer = null;
             state.doubleMode = false;
@@ -292,14 +292,14 @@
             normalButton.innerText = "Bitti ✔️ 2";
             okeyButton.innerText = "Okey ⭕️ 4";
             actionsPanel.style.display = "none";
-        };
+        }
 
-        window.openMenu = async () => {
+        async function openMenu() {
             renderGameStatus(gameNumber, state);
             await openMenuPanel();
-        };
+        }
 
-        window.createNewGame = async function () {
+        async function createNewGame() {
             if (gameId && !state.finished) return;
             let sessionKey;
             const currentSessionSnap = await get(ref(db, "currentSessionKey"));
@@ -337,9 +337,9 @@
             listenGame();
             render();
             menuPanel.style.display = "none";
-        };
+        }
 
-        window.endDay = async function () {
+        async function endDay() {
             if (!confirm("Oturumu bitirmek istediğinden emin misin?")) return;
             const currentSessionSnap = await get(ref(db, "currentSessionKey"));
             if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {
@@ -370,9 +370,9 @@
             updateEndDayVisibility(false);
             render();
             menuPanel.style.display = "none";
-        };
+        }
 
-        window.undo = async function () {
+        async function undo() {
             if (state.rows.length === 0) return;
             const wasFinished = state.finished;
             const prevRanking = state.finalRanking;
@@ -419,7 +419,35 @@
             }
             await log(`${gameNumber ?? "?"}. oyun — son hamle geri alındı`);
             menuPanel.style.display = "none";
-        };
+        }
+
+        // --- Event listener bağlantıları ---
+        document.getElementById("menuBtn").addEventListener("click", openMenu);
+        document.getElementById("menuPanel").addEventListener("click", function(e) {
+            if (e.target === this) this.style.display = "none";
+        });
+        document.getElementById("actionsPanel").addEventListener("click", function(e) {
+            if (e.target === this) closeActionsPanel();
+        });
+
+        [0, 1, 2, 3].forEach(i => {
+            document.getElementById("playerBtn" + i).addEventListener("click", function() {
+                if (!gameId || state.finished) return;
+                state.activePlayer = i;
+                document.querySelectorAll('[name="playerName"]').forEach(e => e.style.color = "");
+                this.style.color = "yellow";
+                actionsPanel.style.display = "flex";
+            });
+        });
+
+        document.getElementById("gostergeButton").addEventListener("click", () => applyScore(1));
+        document.getElementById("penaltyButton").addEventListener("click", () => applyScore(-2));
+        document.getElementById("doubleButton").addEventListener("click", toggleDouble);
+        document.getElementById("normalButton").addEventListener("click", () => applyScore(2));
+        document.getElementById("okeyButton").addEventListener("click", () => applyScore(4));
+        document.getElementById("newGameBtn").addEventListener("click", createNewGame);
+        document.getElementById("undoBtn").addEventListener("click", undo);
+        document.getElementById("endDayBtn").addEventListener("click", endDay);
     </script>
 </body>
 </html>
