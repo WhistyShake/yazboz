@@ -95,11 +95,29 @@ body {
     text-align: right;
 }
 
+#menuPanel>table:last-of-type {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#menuPanel>table:last-of-type tbody,
+#menuPanel>table:last-of-type tr:last-child,
+#menuPanel>table:last-of-type td:last-child {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 #historyList {
-    display: block;
-    height: 30dvh;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     font-size: 3dvw;
     overflow-y: auto;
     scrollbar-width: none;
-    font-family: 'Courier New', Courier, monospace
+    font-family: 'Courier New', Courier, monospace;
+    min-height: 0;
 }

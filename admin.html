@@ -19,13 +19,28 @@
             justify-content: center;
             align-items: center;
             z-index: 10;
+            gap: 20px;
+        }
+
+        #actionsPanel>button {
+            font-size: 8dvw;
+            width: 80dvw;
+            height: 10dvh;
+        }
+
+        #controlMenu {
+            flex-shrink: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
         }
 
         #controlMenu>button {
             width: 30dvw;
             font-size: 3dvw;
             color: white;
-            background-color: darkred;
+            background-color:darkred;
             border-style: hidden;
         }
     </style>
@@ -87,17 +102,18 @@
         </table>
         <br>
         <div id="controlMenu">
-            <button id="newGameBtn" onclick="createNewGame()"><span style="font-size: 8dvw;">🆕</span><br>YeniOyun</button>
+            <button id="newGameBtn" onclick="createNewGame()"><span
+                    style="font-size: 8dvw;">🆕</span><br>YeniOyun</button>
             <button id="endDayBtn" onclick="endDay()"><span style="font-size: 8dvw;">⏹️</span><br>Günsonu Al</button>
             <button id="undoBtn" onclick="undo()"><span style="font-size: 8dvw;">↩️</span><br>Geri Al</button>
         </div>
     </div>
     <div id="actionsPanel" onclick="if(event.target===this)closeActionsPanel()">
-        <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕ 1</button>
-        <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖ 2</button>
-        <button id="doubleButton" onclick="toggleDouble()">Renk ✖️ 1</button>
-        <button id="normalButton" onclick="applyScore(2)">Bitti ✔️ 2</button>
-        <button id="okeyButton" onclick="applyScore(4)">Okey ⭕️ 4</button>
+        <button id="gostergeButton" onclick="applyScore(1)">Gösterge ➕1</button>
+        <button id="penaltyButton" onclick="applyScore(-2)">Ceza ➖2</button>
+        <button id="doubleButton" onclick="toggleDouble()">Renk ✖️1</button>
+        <button id="normalButton" onclick="applyScore(2)">Bitti ✔️2</button>
+        <button id="okeyButton" onclick="applyScore(4)">Okey ⭕️4</button>
     </div>
 
     <script type="module">
@@ -403,10 +419,10 @@
         window.toggleDouble = function () {                                                     // Renge modunu açıp kapatır
             state.doubleMode = !state.doubleMode;                                               // modu tersine çevir
             const x = state.doubleMode;                                                         // kısa kullanım değişkeni
-            doubleButton.innerText = x ? "Renk ❌ 2" : "Renk ✖️ 1";                            // toggle yazısı
-            penaltyButton.innerText = x ? "Ceza ➖ 4" : "Ceza ➖ 2";                           // ceza puanı
-            normalButton.innerText = x ? "Bitti ✔️ 4" : "Bitti ✔️ 2";                          // normal bitiş puanı
-            okeyButton.innerText = x ? "Okey ⭕️ 8" : "Okey ⭕️ 4";                              // okey puanı
+            doubleButton.innerText = x ? "Renk ❌2" : "Renk ✖️1";                            // toggle yazısı
+            penaltyButton.innerText = x ? "Ceza ➖4" : "Ceza ➖2";                           // ceza puanı
+            normalButton.innerText = x ? "Bitti ✔️4" : "Bitti ✔️2";                          // normal bitiş puanı
+            okeyButton.innerText = x ? "Okey ⭕️8" : "Okey ⭕️4";                              // okey puanı
         };
 
         /**
@@ -530,10 +546,10 @@
             document.getElementsByName("playerName").forEach(e => e.style.color = "");          // renkleri temizle
             state.activePlayer = null;                                                          // oyuncu seçimini kaldır
             state.doubleMode = false;                                                           // renge mod kapalı
-            doubleButton.innerText = "Renk ✖️ 1";                                               // varsayılan yazılar
-            penaltyButton.innerText = "Ceza ➖ 2";
-            normalButton.innerText = "Bitti ✔️ 2";
-            okeyButton.innerText = "Okey ⭕️ 4";
+            doubleButton.innerText = "Renk ✖️1";                                               // varsayılan yazılar
+            penaltyButton.innerText = "Ceza ➖2";
+            normalButton.innerText = "Bitti ✔️2";
+            okeyButton.innerText = "Okey ⭕️4";
             actionsPanel.style.display = "none";                                                // panel gizle
         };
 
