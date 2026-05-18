@@ -14,22 +14,22 @@ export const db = getDatabase(initializeApp({
 export const PLAYERS = ["Serkan", "Deniz", "Fırat", "Berkay"];
 export const START = [20, 20, 20, 20];
 
-
 export function renderScoreTable(state) {
     const scoreTable = document.getElementById("scoreTable");
     const src = state.scores;
     const ranking = state.finalRanking || (state.finished
-        ? [...src]
-            .map((s, i) => ({ i, s }))
-            .sort((a, b) => b.s - a.s)
-            .map(r => r.i)
+        ? [...src].map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).map(r => r.i)
         : null
     );
-    scoreTable.innerHTML = `<tr><td>0</td>${START.map(s => `<td>${s}</td>`).join("")}</tr>` +
-        state.rows.map(r => `<tr><td>${r.round}</td>` +
+    scoreTable.innerHTML =
+        `<tr><td>0</td>${START.map(s => `<td>${s}</td>`).join("")}</tr>` +
+        state.rows.map(r =>
+            `<tr><td>${r.round}</td>` +
             r.scores.map((s, i) => i === r.player
-                ? `<td style="color : red; font-weight : bold;">${r.value > 0 ? "+" : ""}${r.value}</td>`
-                : `<td>${s}</td>`).join("") + `</tr>`).join("");
+                ? `<td style="color:red;font-weight:bold">${r.value > 0 ? "+" : ""}${r.value}</td>`
+                : `<td>${s}</td>`
+            ).join("") + `</tr>`
+        ).join("");
     if (state.finished && ranking) {
         const icons = ["🥇", "🥈", "💀", "💀"];
         scoreTable.innerHTML += `<tr class="resultsRow"><td></td>` +
@@ -38,6 +38,25 @@ export function renderScoreTable(state) {
                 return `<td>${s}${icons[rank] ? "<br>" + icons[rank] : ""}</td>`;
             }).join("") + `</tr>`;
     }
+}
+
+function makeStats(data) {
+    if (!data) return "";
+    return Object.entries(data)
+        .filter(([name]) => PLAYERS.includes(name))
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, score]) => `<div style="display:flex;justify-content:space-between"><span>${name}</span><span>${score}</span></div>`)
+        .join("");
+}
+
+export async function renderStatsEngine(db, targets = {}) {
+    const sessionKey = targets.sessionKey;
+    const [sessionSnap, leagueSnap] = await Promise.all([
+        sessionKey ? get(ref(db, "sessions/" + sessionKey + "/scores")) : Promise.resolve({ exists: () => false }),
+        get(ref(db, "league"))
+    ]);
+    if (targets.today) targets.today.innerHTML = makeStats(sessionSnap.exists() ? sessionSnap.val() : null);
+    if (targets.league) targets.league.innerHTML = makeStats(leagueSnap.exists() ? leagueSnap.val() : null);
 }
 
 export async function openMenuPanel() {
@@ -55,15 +74,10 @@ export async function openMenuPanel() {
         get(ref(db, "league/startDate"))
     ]);
 
-    const sessionNum = sessionNumSnap.exists() ? sessionNumSnap.val() : "?";
-    const leagueNum = leagueNumSnap.exists() ? leagueNumSnap.val() : "?";
-    const sessionDate = sessionDateSnap.exists() ? sessionDateSnap.val() : "—";
-    const leagueDate = leagueDateSnap.exists() ? leagueDateSnap.val() : "—";
-
-    sessionHeader.innerHTML = `${sessionNum}. Gün`;
-    sessionDateCell.innerHTML = `${sessionDate}`;
-    leagueHeader.innerHTML = `${leagueNum}. Lig`;
-    leagueDateCell.innerHTML = `${leagueDate}`;
+    sessionHeader.innerHTML   = `${sessionNumSnap.exists() ? sessionNumSnap.val() : "?"}. Gün`;
+    sessionDateCell.innerHTML = sessionDateSnap.exists() ? sessionDateSnap.val() : "—";
+    leagueHeader.innerHTML    = `${leagueNumSnap.exists() ? leagueNumSnap.val() : "?"}. Lig`;
+    leagueDateCell.innerHTML  = leagueDateSnap.exists() ? leagueDateSnap.val() : "—";
 
     await renderStatsEngine(db, {
         league: document.getElementById("leagueStats"),
@@ -72,39 +86,10 @@ export async function openMenuPanel() {
     });
 }
 
-export async function renderStatsEngine(db, targets = {}) {
-    const makeToday = (data) => {
-        if (!data) return "";
-        return Object.entries(data)
-            .filter(([name]) => PLAYERS.includes(name))
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, score]) => `<div style="display : flex; justify-content : space-between;"><span>${name}</span><span>${score}</span></div>`).join("");
-    };
-    const makeLeague = (data) => {
-        if (!data) return "";
-        return Object.entries(data)
-            .filter(([name]) => PLAYERS.includes(name))
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, score]) => `<div style="display : flex; justify-content : space-between;"><span>${name}</span><span>${score}</span></div>`).join("");
-    };
-    const sessionKey = targets.sessionKey;
-    const [sessionSnap, leagueSnap] = await Promise.all([
-        sessionKey ? get(ref(db, "sessions/" + sessionKey + "/scores")) : Promise.resolve({ exists: () => false }),
-        get(ref(db, "league"))
-    ]);
-    if (targets.today) targets.today.innerHTML = makeToday(sessionSnap.exists() ? sessionSnap.val() : null);
-    if (targets.league) targets.league.innerHTML = makeLeague(leagueSnap.exists() ? leagueSnap.val() : null);
-}
-
 export function renderGameStatus(gameNumber, state) {
     const bar = document.getElementById("gameStatusBar");
     if (!bar) return;
-    if (!gameNumber && state.round === 0) {
-        bar.textContent = "Oyun yok";
-        return;
-    }
+    if (!gameNumber && state.round === 0) { bar.textContent = "Oyun yok"; return; }
     const gn = gameNumber ? `${gameNumber}. Oyun` : "Oyun";
-    bar.textContent = state.finished
-        ? `${gn} bitti`
-        : `${gn} - ${state.round}. El`;
+    bar.textContent = state.finished ? `${gn} bitti` : `${gn} - ${state.round}. El`;
 }
