@@ -25,7 +25,7 @@
             width: 30dvw;
             font-size: 3dvw;
             color: white;
-            background-color: transparent;
+            background-color: darkred;
             border-style: hidden;
         }
     </style>
@@ -85,10 +85,11 @@
                 </tr>
             </tbody>
         </table>
+        <br>
         <div id="controlMenu">
-            <button id="newGameBtn" onclick="createNewGame()"><span style="font-size: 10dvw;">🆕</span><br>YeniOyun</button>
-            <button id="endDayBtn" onclick="endDay()"><span style="font-size: 10dvw;">⏹️</span><br>Günsonu Al</button>
-            <button id="undoBtn" onclick="undo()"><span style="font-size: 10dvw;">↩️</span><br>Geri Al</button>
+            <button id="newGameBtn" onclick="createNewGame()"><span style="font-size: 8dvw;">🆕</span><br>YeniOyun</button>
+            <button id="endDayBtn" onclick="endDay()"><span style="font-size: 8dvw;">⏹️</span><br>Günsonu Al</button>
+            <button id="undoBtn" onclick="undo()"><span style="font-size: 8dvw;">↩️</span><br>Geri Al</button>
         </div>
     </div>
     <div id="actionsPanel" onclick="if(event.target===this)closeActionsPanel()">

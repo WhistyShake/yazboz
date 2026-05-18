@@ -97,7 +97,7 @@ body {
 
 #historyList {
     display: block;
-    height: 50dvh;
+    height: 30dvh;
     font-size: 3dvw;
     overflow-y: auto;
     scrollbar-width: none;
