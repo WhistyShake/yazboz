@@ -102,8 +102,7 @@
         </table>
         <br>
         <div id="controlMenu">
-            <button id="newGameBtn" onclick="createNewGame()"><span
-                    style="font-size: 8dvw;">🆕</span><br>YeniOyun</button>
+            <button id="newGameBtn" onclick="createNewGame()"><span style="font-size: 8dvw;">🆕</span><br>Yeni Oyun</button>
             <button id="endDayBtn" onclick="endDay()"><span style="font-size: 8dvw;">⏹️</span><br>Günsonu Al</button>
             <button id="undoBtn" onclick="undo()"><span style="font-size: 8dvw;">↩️</span><br>Geri Al</button>
         </div>
@@ -305,7 +304,6 @@
         function render() {                                                                     // ana ekranı yeniden çizer
             if (!gameId) {                                                                      // aktif oyun yoksa
                 scoreTable.innerHTML = "";                                                      // skor tablosunu temizle
-                newGameBtn.innerText = "Yeni Oyun";                                             // buton yazısını ayarla
                 newGameBtn.disabled = false;                                                    // yeni oyun açılabilsin
                 undoBtn.disabled = true;                                                        // geri alma kapalı
                 return;                                                                         // devam etme
