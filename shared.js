@@ -49,41 +49,53 @@ function makeStats(data) {
         .join("");
 }
 
+// FIX: renderStatsEngine artık session ve league verisini tek seferde çekiyor (2 istek yerine 1)
 export async function renderStatsEngine(db, targets = {}) {
     const sessionKey = targets.sessionKey;
     const [sessionSnap, leagueSnap] = await Promise.all([
         sessionKey ? get(ref(db, "sessions/" + sessionKey + "/scores")) : Promise.resolve({ exists: () => false }),
         get(ref(db, "league"))
     ]);
+    const leagueData = leagueSnap.exists() ? leagueSnap.val() : null;
     if (targets.today) targets.today.innerHTML = makeStats(sessionSnap.exists() ? sessionSnap.val() : null);
-    if (targets.league) targets.league.innerHTML = makeStats(leagueSnap.exists() ? leagueSnap.val() : null);
+    // FIX: league verisinden number/startDate meta alanlarını çıkar, sadece skorları geç
+    if (targets.league) targets.league.innerHTML = makeStats(leagueData);
+    return { leagueData };
 }
 
+// FIX: openMenuPanel artık getElementById kullanıyor, implicit global yok
+//      ve tek get çağrısıyla session + league meta bilgisini çekiyor
 export async function openMenuPanel() {
     const panel = document.getElementById("menuPanel");
     if (panel.style.display === "flex") { panel.style.display = "none"; return; }
     panel.style.display = "flex";
 
+    const sessionHeaderEl   = document.getElementById("sessionHeader");
+    const sessionDateCellEl = document.getElementById("sessionDateCell");
+    const leagueHeaderEl    = document.getElementById("leagueHeader");
+    const leagueDateCellEl  = document.getElementById("leagueDateCell");
+
     const currentSessionSnap = await get(ref(db, "currentSessionKey"));
     const activeSessionKey = currentSessionSnap.exists() && currentSessionSnap.val() ? currentSessionSnap.val() : null;
 
-    const [sessionNumSnap, leagueNumSnap, sessionDateSnap, leagueDateSnap] = await Promise.all([
-        activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey + "/sessionNumber")) : Promise.resolve({ exists: () => false }),
-        get(ref(db, "league/number")),
-        activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey + "/startDate")) : Promise.resolve({ exists: () => false }),
-        get(ref(db, "league/startDate"))
+    // FIX: session meta + league tek Promise.all ile, ayrı ayrı 4 istek yerine
+    const [sessionMetaSnap, leagueSnap] = await Promise.all([
+        activeSessionKey ? get(ref(db, "sessions/" + activeSessionKey)) : Promise.resolve({ exists: () => false }),
+        get(ref(db, "league"))
     ]);
 
-    sessionHeader.innerHTML   = `${sessionNumSnap.exists() ? sessionNumSnap.val() : "?"}. Gün`;
-    sessionDateCell.innerHTML = sessionDateSnap.exists() ? sessionDateSnap.val() : "—";
-    leagueHeader.innerHTML    = `${leagueNumSnap.exists() ? leagueNumSnap.val() : "?"}. Lig`;
-    leagueDateCell.innerHTML  = leagueDateSnap.exists() ? leagueDateSnap.val() : "—";
+    const sessionMeta = sessionMetaSnap.exists() ? sessionMetaSnap.val() : null;
+    const leagueData  = leagueSnap.exists() ? leagueSnap.val() : null;
 
-    await renderStatsEngine(db, {
-        league: document.getElementById("leagueStats"),
-        today: document.getElementById("sessionStats"),
-        sessionKey: activeSessionKey
-    });
+    sessionHeaderEl.innerHTML   = `${sessionMeta?.sessionNumber ?? "?"}. Gün`;
+    sessionDateCellEl.innerHTML = sessionMeta?.startDate ?? "—";
+    leagueHeaderEl.innerHTML    = `${leagueData?.number ?? "?"}. Lig`;
+    leagueDateCellEl.innerHTML  = leagueData?.startDate ?? "—";
+
+    const sessionStatsEl = document.getElementById("sessionStats");
+    const leagueStatsEl  = document.getElementById("leagueStats");
+    if (sessionStatsEl) sessionStatsEl.innerHTML = makeStats(sessionMeta?.scores ?? null);
+    if (leagueStatsEl)  leagueStatsEl.innerHTML  = makeStats(leagueData);
 }
 
 export function renderGameStatus(gameNumber, state) {

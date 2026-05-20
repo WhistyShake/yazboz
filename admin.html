@@ -47,7 +47,7 @@
         <table>
             <thead>
                 <tr>
-                    <th onclick="openMenu()">#</th>
+                    <th onclick="openMenu()">☰</th>
                     <th name="playerName" onclick="selectPlayer(this,0)">Serkan</th>
                     <th name="playerName" onclick="selectPlayer(this,1)">Deniz</th>
                     <th name="playerName" onclick="selectPlayer(this,2)">Fırat</th>
@@ -105,8 +105,20 @@
     <script type="module">
         import { getDatabase, ref, get, set, push, onValue, runTransaction }
             from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-        import { db, PLAYERS, START, renderScoreTable, openMenuPanel, renderStatsEngine, renderGameStatus }
+        import { db, PLAYERS, START, renderScoreTable, openMenuPanel, renderGameStatus }
             from "./shared.js";
+
+        const scoreTableEl  = document.getElementById("scoreTable");
+        const newGameBtn    = document.getElementById("newGameBtn");
+        const undoBtn       = document.getElementById("undoBtn");
+        const endDayBtn     = document.getElementById("endDayBtn");
+        const menuPanelEl   = document.getElementById("menuPanel");
+        const actionsPanelEl = document.getElementById("actionsPanel");
+        const doubleButtonEl = document.getElementById("doubleButton");
+        const penaltyButtonEl = document.getElementById("penaltyButton");
+        const normalButtonEl  = document.getElementById("normalButton");
+        const okeyButtonEl    = document.getElementById("okeyButton");
+        const historyListEl   = document.getElementById("historyList");
 
         let gameId = null;
         let gameNumber = 0;
@@ -127,7 +139,7 @@
         init();
 
         function updateEndDayVisibility(dayOpen) {
-            document.getElementById("endDayBtn").disabled = !dayOpen;
+            endDayBtn.disabled = !dayOpen;
         }
 
         async function init() {
@@ -174,8 +186,8 @@
         function listenHistory() {
             if (unsubscribeHistory) unsubscribeHistory();
             unsubscribeHistory = onValue(ref(db, "history"), snap => {
-                if (!snap.exists()) { historyList.innerHTML = ""; return; }
-                historyList.innerHTML = Object.values(snap.val())
+                if (!snap.exists()) { historyListEl.innerHTML = ""; return; }
+                historyListEl.innerHTML = Object.values(snap.val())
                     .sort((a, b) => b.ts - a.ts)
                     .map(e => `<div>${e.text}</div>`)
                     .join("");
@@ -184,7 +196,7 @@
 
         function render() {
             if (!gameId) {
-                scoreTable.innerHTML = "";
+                scoreTableEl.innerHTML = "";
                 newGameBtn.disabled = false;
                 undoBtn.disabled = true;
                 return;
@@ -216,13 +228,13 @@
             const resultText = ranking.map(pi => `${PLAYERS[pi].slice(0, 3).toUpperCase()}(${state.scores[pi]})`).join(", ");
             await log(`${gameNumber ?? "?"}. oyun bitti: ${resultText}`);
             await runTransaction(ref(db, "sessions/" + activeSession + "/scores"), d => {
-                if (!d) d = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };
+                if (!d) d = Object.fromEntries(PLAYERS.map(p => [p, 0]));
                 d[PLAYERS[first]] += 3;
                 d[PLAYERS[second]] += 1;
                 return d;
             });
             await runTransaction(ref(db, "league"), league => {
-                if (!league) league = { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 };
+                if (!league) league = Object.fromEntries(PLAYERS.map(p => [p, 0]));
                 league[PLAYERS[first]] += 3;
                 league[PLAYERS[second]] += 1;
                 return league;
@@ -234,29 +246,27 @@
             state.activePlayer = index;
             document.querySelectorAll('[name="playerName"]').forEach(e => e.style.color = "");
             el.style.color = "yellow";
-            actionsPanel.style.display = "flex";
+            actionsPanelEl.style.display = "flex";
         };
 
         window.toggleDouble = function () {
             state.doubleMode = !state.doubleMode;
             const x = state.doubleMode;
-            doubleButton.innerText  = x ? "Renk ❌2"  : "Renk ✖️1";
-            penaltyButton.innerText = x ? "Ceza ➖4"  : "Ceza ➖2";
-            normalButton.innerText  = x ? "Bitti ✔️4" : "Bitti ✔️2";
-            okeyButton.innerText    = x ? "Okey ⭕️8"  : "Okey ⭕️4";
+            doubleButtonEl.innerText  = x ? "Renk ❌2"  : "Renk ✖️1";
+            penaltyButtonEl.innerText = x ? "Ceza ➖4"  : "Ceza ➖2";
+            normalButtonEl.innerText  = x ? "Bitti ✔️4" : "Bitti ✔️2";
+            okeyButtonEl.innerText    = x ? "Okey ⭕️8"  : "Okey ⭕️4";
         };
 
         window.applyScore = async function (rawValue) {
             const double = state.doubleMode && rawValue !== 1;
             const value = double ? rawValue * 2 : rawValue;
             const player = PLAYERS[state.activePlayer];
-            const round = state.round + (rawValue !== 1 ? 1 : 0);
             const renk = double ? " renge" : "";
+
+            let actualRound = state.round;
             let logText;
-            if (rawValue === 1)      logText = `${round}. elde ${player} gösterge gösterdi`;
-            else if (rawValue < 0)   logText = `${round}. elde ${player}${renk} ceza aldı`;
-            else if (rawValue === 2) logText = `${round}. elde ${player}${renk} bitti`;
-            else if (rawValue === 4) logText = `${round}. elde ${player}${renk} bastı`;
+
             await runTransaction(ref(db, "games/" + gameId), g => {
                 if (!g || g.finished) return g;
                 const p = state.activePlayer;
@@ -267,6 +277,7 @@
                     for (let i = 0; i < 4; i++) if (i !== p) g.scores[i] -= value;
                 }
                 if (rawValue !== 1) g.round++;
+                actualRound = g.round;
                 g.rows = g.rows || {};
                 g.rows[Object.keys(g.rows).length] = { round: g.round, scores: [...g.scores], player: p, value };
                 const losers = g.scores.filter(s => s <= 0).length;
@@ -276,6 +287,13 @@
                 }
                 return g;
             });
+
+            const roundLabel = rawValue === 1 ? state.round : actualRound;
+            if (rawValue === 1)      logText = `${roundLabel}. elde ${player} gösterge gösterdi`;
+            else if (rawValue < 0)   logText = `${roundLabel}. elde ${player}${renk} ceza aldı`;
+            else if (rawValue === 2) logText = `${roundLabel}. elde ${player}${renk} bitti`;
+            else if (rawValue === 4) logText = `${roundLabel}. elde ${player}${renk} bastı`;
+
             await log(logText);
             closeActionsPanel();
         };
@@ -293,11 +311,11 @@
             document.getElementsByName("playerName").forEach(e => e.style.color = "");
             state.activePlayer = null;
             state.doubleMode = false;
-            doubleButton.innerText  = "Renk ✖️1";
-            penaltyButton.innerText = "Ceza ➖2";
-            normalButton.innerText  = "Bitti ✔️2";
-            okeyButton.innerText    = "Okey ⭕️4";
-            actionsPanel.style.display = "none";
+            doubleButtonEl.innerText  = "Renk ✖️1";
+            penaltyButtonEl.innerText = "Ceza ➖2";
+            normalButtonEl.innerText  = "Bitti ✔️2";
+            okeyButtonEl.innerText    = "Okey ⭕️4";
+            actionsPanelEl.style.display = "none";
         };
 
         window.openMenu = async () => {
@@ -307,27 +325,42 @@
 
         window.createNewGame = async function () {
             if (gameId && !state.finished) return;
+
             let sessionKey;
-            const currentSessionSnap = await get(ref(db, "currentSessionKey"));
-            if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {
+
+            let isNewSession = false;
+            let sessionNum = 1;
+            let startDate = "";
+
+            await runTransaction(ref(db, "currentSessionKey"), current => {
+                if (current) return current; // zaten açık session var, dokunma
+                isNewSession = true;
+                return "__pending__"; // yer tutucu, hemen ardından gerçek key set edilecek
+            });
+
+            const afterTxSnap = await get(ref(db, "currentSessionKey"));
+            const afterTxVal  = afterTxSnap.val();
+
+            if (isNewSession || afterTxVal === "__pending__") {
                 const allSessionsSnap = await get(ref(db, "sessions"));
-                const sessionNum = allSessionsSnap.exists()
+                sessionNum = allSessionsSnap.exists()
                     ? Math.max(0, ...Object.values(allSessionsSnap.val()).map(s => s.sessionNumber || 0)) + 1
                     : 1;
                 const d = new Date();
-                const startDate = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
+                startDate = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
                 const sessionRef = push(ref(db, "sessions"));
                 sessionKey = sessionRef.key;
                 await set(sessionRef, {
                     sessionNumber: sessionNum, startDate, gameCount: 0,
-                    scores: { Serkan: 0, Deniz: 0, Fırat: 0, Berkay: 0 }
+                    scores: Object.fromEntries(PLAYERS.map(p => [p, 0]))
                 });
                 await set(ref(db, "currentSessionKey"), sessionKey);
                 updateEndDayVisibility(true);
                 await log(`${sessionNum}. oturum açıldı`);
             } else {
-                sessionKey = currentSessionSnap.val();
+                sessionKey = afterTxVal;
             }
+
             const countSnap = await get(ref(db, "sessions/" + sessionKey + "/gameCount"));
             const count = countSnap.exists() ? countSnap.val() + 1 : 1;
             await set(ref(db, "sessions/" + sessionKey + "/gameCount"), count);
@@ -341,11 +374,17 @@
             await log(`${count}. oyun başladı`);
             listenGame();
             render();
-            menuPanel.style.display = "none";
+            menuPanelEl.style.display = "none";
         };
 
         window.endDay = async function () {
-            if (!confirm("Oturumu bitirmek istediğinden emin misin?")) return;
+
+            if (gameId && !state.finished) {
+                if (!confirm("Devam eden bir oyun var! Yine de oturumu bitirmek istiyor musun?")) return;
+            } else {
+                if (!confirm("Oturumu bitirmek istediğinden emin misin?")) return;
+            }
+
             const currentSessionSnap = await get(ref(db, "currentSessionKey"));
             if (!currentSessionSnap.exists() || !currentSessionSnap.val()) {
                 alert("Açık bir oturum yok!");
@@ -371,7 +410,7 @@
             lastFinished = false;
             updateEndDayVisibility(false);
             render();
-            menuPanel.style.display = "none";
+            menuPanelEl.style.display = "none";
         };
 
         window.undo = async function () {
@@ -398,24 +437,29 @@
                 g.scoresUpdated = false;
                 return g;
             });
+
+            lastFinished = false;
+
             if (wasFinished && prevRanking) {
                 const sessionKeySnap = await get(ref(db, "currentSessionKey"));
                 const activeSession = sessionKeySnap.exists() && sessionKeySnap.val() ? sessionKeySnap.val() : null;
-                await runTransaction(ref(db, "sessions/" + activeSession + "/scores"), d => {
-                    if (!d) return d;
-                    d[PLAYERS[prevRanking[0]]] -= 3;
-                    d[PLAYERS[prevRanking[1]]] -= 1;
-                    return d;
-                });
-                await runTransaction(ref(db, "league"), league => {
-                    if (!league) return league;
-                    league[PLAYERS[prevRanking[0]]] -= 3;
-                    league[PLAYERS[prevRanking[1]]] -= 1;
-                    return league;
-                });
+                if (activeSession) {
+                    await runTransaction(ref(db, "sessions/" + activeSession + "/scores"), d => {
+                        if (!d) return d;
+                        d[PLAYERS[prevRanking[0]]] -= 3;
+                        d[PLAYERS[prevRanking[1]]] -= 1;
+                        return d;
+                    });
+                    await runTransaction(ref(db, "league"), league => {
+                        if (!league) return league;
+                        league[PLAYERS[prevRanking[0]]] -= 3;
+                        league[PLAYERS[prevRanking[1]]] -= 1;
+                        return league;
+                    });
+                }
             }
             await log(`${gameNumber ?? "?"}. oyun — son hamle geri alındı`);
-            menuPanel.style.display = "none";
+            menuPanelEl.style.display = "none";
         };
     </script>
 </body>
